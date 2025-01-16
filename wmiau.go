@@ -18,6 +18,7 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	"github.com/jmoiron/sqlx" // Importação do sqlx
+	"github.com/joho/godotenv"
 	"github.com/mdp/qrterminal/v3"
 	"github.com/patrickmn/go-cache"
 	"github.com/skip2/go-qrcode"
@@ -283,6 +284,34 @@ func fileToBase64(filepath string) (string, string, error) {
 }
 
 func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
+	// Carregar variáveis de ambiente
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Erro ao carregar o arquivo .env")
+	}
+
+	// Verificar se o logger de arquivo está habilitado
+	enableLoggerFile := os.Getenv("ENABLE_LOGGER_FILE") == "true"
+
+	// Abrir arquivo de log se habilitado
+	var file *os.File
+	if enableLoggerFile {
+		file, err = os.OpenFile("event_log.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Erro ao abrir o arquivo de log")
+		}
+		defer file.Close()
+	}
+
+	// Função para registrar eventos no arquivo
+	logEventToFile := func(event string) {
+		if enableLoggerFile {
+			if _, err := file.WriteString(fmt.Sprintf("%s - %s\n", time.Now().Format(time.RFC3339), event)); err != nil {
+				log.Println("Erro ao escrever no arquivo de log:", err)
+			}
+		}
+	}
+
 	txtid := strconv.Itoa(mycli.userID)
 	postmap := make(map[string]interface{})
 	postmap["event"] = rawEvt
@@ -297,6 +326,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 
 	switch evt := rawEvt.(type) {
 	case *events.AppStateSyncComplete:
+		logEventToFile("AppStateSyncComplete event")
 		if len(mycli.WAClient.Store.PushName) > 0 && evt.Name == appstate.WAPatchCriticalBlock {
 			err := mycli.WAClient.SendPresence(types.PresenceAvailable)
 			if err != nil {
@@ -306,6 +336,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			}
 		}
 	case *events.Connected, *events.PushNameSetting:
+		logEventToFile("Connected or PushNameSetting event")
 		if len(mycli.WAClient.Store.PushName) == 0 {
 			return
 		}
@@ -324,6 +355,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			return
 		}
 	case *events.PairSuccess:
+		logEventToFile(fmt.Sprintf("PairSuccess event: {type: %T, event: %+v}", evt, evt))
 		log.Info().Str("userid",strconv.Itoa(mycli.userID)).Str("token",mycli.token).Str("ID",evt.ID.String()).Str("BusinessName",evt.BusinessName).Str("Platform",evt.Platform).Msg("QR Pair Success")
 		jid := evt.ID
 		sqlStmt := `UPDATE users SET jid=$1 WHERE id=$2`
@@ -344,9 +376,11 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			log.Info().Str("jid",jid.String()).Str("userid",txtid).Str("token",token).Msg("User information set")
 		}
 	case *events.StreamReplaced:
+		logEventToFile(fmt.Sprintf("StreamReplaced event: {type: %T, event: %+v}", evt, evt))
 		log.Info().Msg("Received StreamReplaced event")
 		return
 	case *events.Message:
+		logEventToFile(fmt.Sprintf("Message event: {type: %T, event: %+v}", evt, evt))
 		postmap["type"] = "Message"
 		dowebhook = 1
 		metaParts := []string{fmt.Sprintf("pushname: %s", evt.Info.PushName), fmt.Sprintf("timestamp: %s", evt.Info.Timestamp)}
@@ -535,6 +569,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			}
 
 	case *events.Receipt:
+		logEventToFile(fmt.Sprintf("Receipt event: {type: %T, event: %+v}", evt, evt))
 		postmap["type"] = "ReadReceipt"
 		dowebhook = 1
 		if evt.Type == events.ReceiptTypeRead || evt.Type == events.ReceiptTypeReadSelf {
@@ -552,6 +587,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			return
 		}
 	case *events.Presence:
+		logEventToFile(fmt.Sprintf("Presence event: {type: %T, event: %+v}", evt, evt))
 		postmap["type"] = "Presence"
 		dowebhook = 1
 		if evt.Unavailable {
@@ -566,6 +602,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			log.Info().Str("from",evt.From.String()).Msg("User is now online")
 		}
 	case *events.HistorySync:
+		logEventToFile(fmt.Sprintf("HistorySync event: {type: %T, event: %+v}", evt, evt))
 		postmap["type"] = "HistorySync"
 		dowebhook = 1
 
@@ -597,8 +634,12 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		log.Info().Str("filename",fileName).Msg("Wrote history sync")
 		_ = file.Close()
 	case *events.AppState:
+		logEventToFile(fmt.Sprintf("AppState event: {type: %T, event: %+v}", evt, evt))
 		log.Info().Str("index",fmt.Sprintf("%+v",evt.Index)).Str("actionValue",fmt.Sprintf("%+v",evt.SyncActionValue)).Msg("App state event received")
 	case *events.LoggedOut:
+		logEventToFile(fmt.Sprintf("LoggedOut event: {type: %T, event: %+v}", evt, evt))
+		postmap["type"] = "Connection"
+		dowebhook = 1
 		log.Info().Str("reason",evt.Reason.String()).Msg("Logged out")
 		killchannel[mycli.userID] <- true
 		sqlStmt := `UPDATE users SET connected=0 WHERE id=$1`
@@ -607,21 +648,29 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			log.Error().Err(err).Msg(sqlStmt)
 			return
 		}
+	
 	case *events.ChatPresence:
+		logEventToFile(fmt.Sprintf("ChatPresence event: {type: %T, event: %+v}", evt, evt))
 		postmap["type"] = "ChatPresence"
 		dowebhook = 1
 		log.Info().Str("state",fmt.Sprintf("%s",evt.State)).Str("media",fmt.Sprintf("%s",evt.Media)).Str("chat",evt.MessageSource.Chat.String()).Str("sender",evt.MessageSource.Sender.String()).Msg("Chat Presence received")
 	case *events.CallOffer:
+		logEventToFile(fmt.Sprintf("CallOffer event: {type: %T, event: %+v}", evt, evt))
 		log.Info().Str("event",fmt.Sprintf("%+v",evt)).Msg("Got call offer")
 	case *events.CallAccept:
+		logEventToFile(fmt.Sprintf("CallAccept event: {type: %T, event: %+v}", evt, evt))
 		log.Info().Str("event",fmt.Sprintf("%+v",evt)).Msg("Got call accept")
 	case *events.CallTerminate:
+		logEventToFile(fmt.Sprintf("CallTerminate event: {type: %T, event: %+v}", evt, evt))
 		log.Info().Str("event",fmt.Sprintf("%+v",evt)).Msg("Got call terminate")
 	case *events.CallOfferNotice:
+		logEventToFile(fmt.Sprintf("CallOfferNotice event: {type: %T, event: %+v}", evt, evt))
 		log.Info().Str("event",fmt.Sprintf("%+v",evt)).Msg("Got call offer notice")
 	case *events.CallRelayLatency:
+		logEventToFile(fmt.Sprintf("CallRelayLatency event: {type: %T, event: %+v}", evt, evt))
 		log.Info().Str("event",fmt.Sprintf("%+v",evt)).Msg("Got call relay latency")
 	default:
+		logEventToFile(fmt.Sprintf("Unhandled event: {type: %T, event: %+v}", evt, evt))
 		log.Warn().Str("event",fmt.Sprintf("%+v",evt)).Msg("Unhandled event")
 	}
 
@@ -674,4 +723,16 @@ if webhookurl != "" {
     log.Warn().Str("userid",strconv.Itoa(mycli.userID)).Msg("No webhook set for user")
 }
 	}
+}
+
+func logEventToFile(eventType string, evt interface{}) {
+	// Formata o evento como JSON com indentação
+	eventJSON, err := json.MarshalIndent(evt, "", "  ")
+	if err != nil {
+		log.Printf("Erro ao formatar evento: %v", err)
+		return
+	}
+
+	// Registra o evento formatado com quebras de linha
+	log.Println(fmt.Sprintf("%s:\n%s", eventType, string(eventJSON)))
 }

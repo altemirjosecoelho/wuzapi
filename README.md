@@ -1,47 +1,47 @@
 # WUZAPI
 
-<img src="static/favicon.ico" width="30"> WuzAPI is an implementation 
-of [@tulir/whatsmeow](https://github.com/tulir/whatsmeow) library as a 
-simple RESTful API service with multiple device support and concurrent 
+<img src="static/favicon.ico" width="30"> WuzAPI is an implementation
+of [@tulir/whatsmeow](https://github.com/tulir/whatsmeow) library as a
+simple RESTful API service with multiple device support and concurrent
 sessions.
 
-Whatsmeow does not use Puppeteer on headless Chrome, nor an Android emulator. 
-It talks directly to WhatsApp websocket servers, thus is quite fast and uses 
-much less memory and CPU than those solutions. The drawback is that a change 
-in the WhatsApp protocol could break connections and will require a library 
+Whatsmeow does not use Puppeteer on headless Chrome, nor an Android emulator.
+It talks directly to WhatsApp websocket servers, thus is quite fast and uses
+much less memory and CPU than those solutions. The drawback is that a change
+in the WhatsApp protocol could break connections and will require a library
 update.
 
 ## :warning: Warning
 
-**Using this software violating WhatsApp ToS can get your number banned**: 
+**Using this software violating WhatsApp ToS can get your number banned**:
 Be very careful, do not use this to send SPAM or anything like it. Use at
-your own risk. If you need to develop something with commercial interest 
+your own risk. If you need to develop something with commercial interest
 you should contact a WhatsApp global solution provider and sign up for the
 Whatsapp Business API service instead.
 
 ## Available endpoints
 
-* Session: connect, disconnect and logout from WhatsApp. Retrieve 
-connection status. Retrieve QR code for scanning.
-* Messages: send text, image, audio, document, template, video, sticker, 
-location and contact messages.
-* Users: check if phones have whatsapp, get user information, get user avatar, 
-retrieve full contact list.
-* Chat: set presence (typing/paused,recording media), mark messages as read, 
-download images from messages, send reactions.
-* Groups: list subscribed, get info, get invite links, change photo and name.
-* Webhooks: set and get webhook that will be called whenever events/messages 
-are received.
+- Session: connect, disconnect and logout from WhatsApp. Retrieve
+  connection status. Retrieve QR code for scanning.
+- Messages: send text, image, audio, document, template, video, sticker,
+  location and contact messages.
+- Users: check if phones have whatsapp, get user information, get user avatar,
+  retrieve full contact list.
+- Chat: set presence (typing/paused,recording media), mark messages as read,
+  download images from messages, send reactions.
+- Groups: list subscribed, get info, get invite links, change photo and name.
+- Webhooks: set and get webhook that will be called whenever events/messages
+  are received.
 
 ## Prerequisites
 
 Packages:
 
-* Go (Go Programming Language)
+- Go (Go Programming Language)
 
 Optional:
 
-* Docker (Containerization)
+- Docker (Containerization)
 
 ## Building
 
@@ -54,13 +54,13 @@ go build .
 By default it will start a REST service in port 8080. These are the parameters
 you can use to alter behaviour
 
-* -address  : sets the IP address to bind the server to (default 0.0.0.0)
-* -port  : sets the port number (default 8080)
-* -logtype : format for logs, either console (default) or json
-* -wadebug : enable whatsmeow debug, either INFO or DEBUG levels are suported
-* -sslcertificate : SSL Certificate File
-* -sslprivatekey : SSL Private Key File
-* -admintoken : your admin token to create, get, or delete users from database
+- -address : sets the IP address to bind the server to (default 0.0.0.0)
+- -port : sets the port number (default 8080)
+- -logtype : format for logs, either console (default) or json
+- -wadebug : enable whatsmeow debug, either INFO or DEBUG levels are suported
+- -sslcertificate : SSL Certificate File
+- -sslprivatekey : SSL Private Key File
+- -admintoken : your admin token to create, get, or delete users from database
 
 Example:
 
@@ -74,8 +74,8 @@ In order to open up sessions, you first need to create a user and set an
 authentication token for it. You can do so by updating the SQLite _users.db_
 database:
 
-``` 
-sqlite3 dbdata/users.db "insert into users ('name','token') values ('John','1234ABCD')" 
+```
+sqlite3 dbdata/users.db "insert into users ('name','token') values ('John','1234ABCD')"
 ```
 
 Once you have some users created, you can talk to the API passing the **Token**
@@ -85,15 +85,15 @@ header as a simple means of authentication. You can have several users
 The daemon also serves some static web files, useful for development/testing
 that you can load with your browser:
 
-* An API swagger reference in [/api](/api) A sample web page to connect and
-* scan QR codes in [/login](/login) (where you will need to pass
-?token=1234ABCD)
+- An API swagger reference in [/api](/api) A sample web page to connect and
+- scan QR codes in [/login](/login) (where you will need to pass
+  ?token=1234ABCD)
 
 ## ADMIN Actions
 
 You can also list, add and delete users using an admin enpoint. In order to
 use it you must either pass the -admintoken parameter on the command line when
-starting wuzapi, or set the enviornment variable WUZAPI\_ADMIN\_TOKEN
+starting wuzapi, or set the enviornment variable WUZAPI_ADMIN_TOKEN
 
 Then you can use the /admin/users endpoint to GET the list of users, you can
 POST to /admin/users to create a new user, or you can DELETE to /admin/users/{id}
@@ -105,10 +105,10 @@ The JSON body to create a new user must contain:
 - name [string] : User name
 - token [string] : Security token for authorizing/authenticating this user
 - webhook [string] : URL to send events via POST
-- events [string] : comma separated list of events to receive, valid events are: "Message", "ReadReceipt", "Presence", "HistorySync", "ChatPresence", "All"
+- events [string] : comma separated list of events to receive, valid events are: "Message", "ReadReceipt", "Presence", "HistorySync", "ChatPresence", "Connection", "All"
 - expiration [int] : Some expiration timestamp, it is not enforced not used by the daemon
 
-## API reference 
+## API reference
 
 API calls should be made with content type json, and parameters sent into the
 request body, always passing the Token header for authenticating the request.
@@ -168,5 +168,3 @@ distribution makes it eligible for export under the License Exception ENC
 Technology Software Unrestricted (TSU) exception (see the BIS Export
 Administration Regulations, Section 740.13) for both object code and source
 code.
-
-
