@@ -33,7 +33,7 @@ type server struct {
 
 var (
 	address     = flag.String("address", "0.0.0.0", "Bind IP Address")
-	port        = flag.String("port", "8080", "Listen Port")
+	port        = flag.String("port", "7000", "Listen Port")
 	waDebug     = flag.String("wadebug", "", "Enable whatsmeow debug (INFO or DEBUG)")
 	logType     = flag.String("logtype", "console", "Type of log output (console or json)")
 	colorOutput = flag.Bool("color", false, "Enable colored output for console logs")
@@ -55,6 +55,12 @@ func init() {
 	}
 
 	flag.Parse()
+
+	
+	// Verifica se a variável de ambiente para a porta está definida
+	if envPort := os.Getenv("PORT"); envPort != "" {
+		*port = envPort
+	}
 
 	if *logType == "json" {
 		log = zerolog.New(os.Stdout).With().Timestamp().Str("role", filepath.Base(os.Args[0])).Logger()
