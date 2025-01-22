@@ -1,0 +1,408 @@
+<!-- ?xml version='1.0' encoding='UTF-8'? -->
+<link href="/github-markdown-css/github-css.css" rel="stylesheet" />
+<meta charset="utf-8" content="text/html" />
+<div class="gist">
+  <style class="formula-style">
+    svg.gh-md-to-html-formula {
+      fill: black;
+    }
+  </style>
+  <div class="gist-file">
+    <div class="gist-data">
+      <div style="text-align: right; padding: 10px">
+        <a
+          href="/index.html"
+          class="btn"
+          style="
+            padding: 8px 16px;
+            background-color: #0366d6;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+          "
+        >
+          English Version
+        </a>
+      </div>
+      <div
+        class="js-gist-file-update-container js-task-list-container file-box"
+      >
+        <div class="file" id="user-content-article-README">
+          <div
+            class="Box-body readme blob js-code-block-container p-5 p-xl-6"
+            id="user-content-file-docker-image-pull-md-readme"
+            style="
+              margin-left: 40px;
+              margin-right: 40px;
+              margin-top: 20px;
+              margin-bottom: 20px;
+            "
+          >
+            <article
+              class="markdown-body entry-content container-lg"
+              itemprop="text"
+            >
+              <h1 id="user-content-wuzapi">
+                <a
+                  aria-hidden="true"
+                  class="anchor"
+                  href="#user-content-wuzapi"
+                  id="user-content-wuzapi"
+                  name="user-content-wuzapi"
+                  ><span
+                    aria-hidden="true"
+                    class="octicon octicon-link"
+                  ></span></a
+                >WUZAPI
+              </h1>
+              <p>
+                <a
+                  href="/images/favicon.png"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  ><img
+                    data-canonical-src="/images/favicon.png"
+                    src="/images/favicon.png"
+                    style="max-width: 100%; max-height: 512px"
+                    width="30"
+                /></a>
+                WuzAPI é uma implementação da biblioteca
+                <a href="https://github.com/tulir/whatsmeow"
+                  >@tulir/whatsmeow</a
+                >
+                como um serviço de API RESTful simples com suporte a múltiplos
+                dispositivos e sessões concorrentes.
+              </p>
+              <p>
+                O Whatsmeow não usa Puppeteer em Chrome headless, nem um
+                emulador Android. Ele se comunica diretamente com os servidores
+                websocket do WhatsApp, sendo assim bastante rápido e utilizando
+                muito menos memória e CPU que outras soluções. A desvantagem é
+                que uma mudança no protocolo do WhatsApp pode quebrar as
+                conexões e necessitará de uma atualização da biblioteca.
+              </p>
+              <h2 id="user-content-ezf3weaa2uhg9u52fwkic-warning">
+                <a
+                  aria-hidden="true"
+                  class="anchor"
+                  href="#user-content-ezf3weaa2uhg9u52fwkic-warning"
+                  id="user-content-ezf3weaa2uhg9u52fwkic-warning"
+                  name="user-content-ezf3weaa2uhg9u52fwkic-warning"
+                  ><span
+                    aria-hidden="true"
+                    class="octicon octicon-link"
+                  ></span></a
+                >⚠️ Aviso
+              </h2>
+              <p>
+                <strong
+                  >Usar este software violando os Termos de Serviço do WhatsApp
+                  pode resultar no banimento do seu número</strong
+                >: Seja muito cuidadoso, não use isto para enviar SPAM ou algo
+                similar. Use por sua própria conta e risco. Se você precisa
+                desenvolver algo com interesse comercial, você deve contatar um
+                provedor de soluções globais do WhatsApp e se inscrever no
+                serviço WhatsApp Business API.
+              </p>
+              <h2 id="user-content-available-endpoints">
+                <a
+                  aria-hidden="true"
+                  class="anchor"
+                  href="#user-content-available-endpoints"
+                  id="user-content-available-endpoints"
+                  name="user-content-available-endpoints"
+                  ><span
+                    aria-hidden="true"
+                    class="octicon octicon-link"
+                  ></span></a
+                >Endpoints Disponíveis
+              </h2>
+              <ul>
+                <li>
+                  Sessão: conectar, desconectar e sair do WhatsApp. Verificar
+                  status da conexão. Obter código QR para escaneamento.
+                </li>
+                <li>
+                  Mensagens: enviar mensagens de texto, imagem, áudio,
+                  documento, template, vídeo, figurinha, localização e contato.
+                </li>
+                <li>
+                  Usuários: verificar se números têm WhatsApp, obter informações
+                  do usuário, obter avatar do usuário, recuperar lista completa
+                  de contatos.
+                </li>
+                <li>
+                  Chat: definir presença (digitando/pausado, gravando mídia),
+                  marcar mensagens como lidas, baixar imagens das mensagens.
+                </li>
+                <li>
+                  Grupos: listar inscritos, obter informações, obter links de
+                  convite, alterar foto e nome.
+                </li>
+                <li>
+                  Webhooks: definir e obter webhook que será chamado sempre que
+                  um evento/mensagem for recebido.
+                </li>
+              </ul>
+              <h2 id="user-content-prerequisites">
+                <a
+                  aria-hidden="true"
+                  class="anchor"
+                  href="#user-content-prerequisites"
+                  id="user-content-prerequisites"
+                  name="user-content-prerequisites"
+                  ><span
+                    aria-hidden="true"
+                    class="octicon octicon-link"
+                  ></span></a
+                >Pré-requisitos
+              </h2>
+              <p>Pacotes:</p>
+              <ul>
+                <li>Go (Linguagem de Programação Go)</li>
+              </ul>
+              <p>Opcional:</p>
+              <ul>
+                <li>Docker (Containerização)</li>
+              </ul>
+              <h2 id="user-content-building">
+                <a
+                  aria-hidden="true"
+                  class="anchor"
+                  href="#user-content-building"
+                  id="user-content-building"
+                  name="user-content-building"
+                  ><span
+                    aria-hidden="true"
+                    class="octicon octicon-link"
+                  ></span></a
+                >Compilação
+              </h2>
+              <pre><code>go build .</code></pre>
+              <h2 id="user-content-run">
+                <a
+                  aria-hidden="true"
+                  class="anchor"
+                  href="#user-content-run"
+                  id="user-content-run"
+                  name="user-content-run"
+                  ><span
+                    aria-hidden="true"
+                    class="octicon octicon-link"
+                  ></span></a
+                >Execução
+              </h2>
+              <p>
+                Por padrão, iniciará um serviço REST na porta 8080. Estes são os
+                parâmetros que você pode usar para alterar o comportamento:
+              </p>
+              <ul>
+                <li>
+                  -address : define o endereço IP para vincular o servidor
+                  (padrão 0.0.0.0)
+                </li>
+                <li>-port : define o número da porta (padrão 8080)</li>
+                <li>
+                  -logtype : formato para logs, pode ser console (padrão) ou
+                  json
+                </li>
+                <li>
+                  -wadebug : ativa o debug do whatsmeow, suporta níveis INFO ou
+                  DEBUG
+                </li>
+                <li>-sslcertificate : Arquivo de Certificado SSL</li>
+                <li>-sslprivatekey : Arquivo de Chave Privada SSL</li>
+              </ul>
+              <p>Exemplo:</p>
+              <pre><code>./wuzapi -logtype json</code></pre>
+              <h2 id="user-content-usage">
+                <a
+                  aria-hidden="true"
+                  class="anchor"
+                  href="#user-content-usage"
+                  id="user-content-usage"
+                  name="user-content-usage"
+                  ><span
+                    aria-hidden="true"
+                    class="octicon octicon-link"
+                  ></span></a
+                >Uso
+              </h2>
+              <p>
+                Para abrir sessões, primeiro você precisa criar um usuário e
+                definir um token de autenticação para ele. Você pode fazer isso
+                atualizando o banco de dados SQLite <em>users.db</em>:
+              </p>
+              <pre><code>sqlite3 dbdata/users.db "insert into users ('name','token') values ('John','1234ABCD')"</code></pre>
+              <p>
+                Depois de criar alguns usuários, você pode se comunicar com a
+                API passando o cabeçalho <strong>Token</strong>
+                como um meio simples de autenticação. Você pode ter vários
+                usuários (números diferentes) no mesmo servidor.
+              </p>
+              <p>
+                O daemon também serve alguns arquivos web estáticos, úteis para
+                desenvolvimento/teste que você pode carregar com seu navegador:
+              </p>
+              <ul>
+                <li>
+                  Uma referência swagger da API em <a href="/api">/api</a>
+                </li>
+                <li>
+                  Uma página web de exemplo para conectar e escanear códigos QR
+                  em <a href="/login">/login</a> (onde você precisará passar
+                  ?token=1234ABCD)
+                </li>
+              </ul>
+              <h2 id="user-content-api-reference">
+                <a
+                  aria-hidden="true"
+                  class="anchor"
+                  href="#user-content-api-reference"
+                  id="user-content-api-reference"
+                  name="user-content-api-reference"
+                  ><span
+                    aria-hidden="true"
+                    class="octicon octicon-link"
+                  ></span></a
+                >Referência da API
+              </h2>
+              <p>
+                As chamadas à API devem ser feitas com tipo de conteúdo json, e
+                parâmetros enviados no corpo da requisição, sempre passando o
+                cabeçalho Token para autenticar a requisição.
+              </p>
+              <p>Consulte a <a href="/api">Referência da API</a></p>
+              <p>
+                Consulte a
+                <a href="/api-pt-br">Referência da API em Português</a>
+              </p>
+              <h2 id="user-content-license">
+                <a
+                  aria-hidden="true"
+                  class="anchor"
+                  href="#user-content-license"
+                  id="user-content-license"
+                  name="user-content-license"
+                  ><span
+                    aria-hidden="true"
+                    class="octicon octicon-link"
+                  ></span></a
+                >Licença
+              </h2>
+              <p>Copyright © 2022 Nicolás Gudiño</p>
+              <p>
+                <a
+                  href="https://choosealicense.com/licenses/mit/"
+                  rel="nofollow"
+                  >MIT</a
+                >
+              </p>
+              <p>
+                É concedida permissão, gratuitamente, a qualquer pessoa que
+                obtenha uma cópia deste software e arquivos de documentação
+                associados (o "Software"), para lidar com o Software sem
+                restrições, incluindo, sem limitação, os direitos de usar,
+                copiar, modificar, mesclar, publicar, distribuir, sublicenciar
+                e/ou vender cópias do Software, e permitir que as pessoas a quem
+                o Software é fornecido o façam, sujeito às seguintes condições:
+              </p>
+              <p>
+                O aviso de direitos autorais acima e este aviso de permissão
+                devem ser incluídos em todas as cópias ou partes substanciais do
+                Software.
+              </p>
+              <p>
+                O SOFTWARE É FORNECIDO "COMO ESTÁ", SEM GARANTIA DE QUALQUER
+                TIPO, EXPRESSA OU IMPLÍCITA, INCLUINDO, MAS NÃO SE LIMITANDO ÀS
+                GARANTIAS DE COMERCIALIZAÇÃO, ADEQUAÇÃO A UM DETERMINADO FIM E
+                NÃO VIOLAÇÃO. EM NENHUM CASO OS AUTORES OU TITULARES DOS
+                DIREITOS AUTORAIS SERÃO RESPONSÁVEIS POR QUALQUER RECLAMAÇÃO,
+                DANOS OU OUTRA RESPONSABILIDADE, SEJA EM UMA AÇÃO DE CONTRATO,
+                ATO ILÍCITO OU DE OUTRA FORMA, DECORRENTE DE, OU EM CONEXÃO COM
+                O SOFTWARE OU O USO OU OUTRAS NEGOCIAÇÕES NO SOFTWARE.
+              </p>
+              <h2 id="user-content-icon-attribution">
+                <a
+                  aria-hidden="true"
+                  class="anchor"
+                  href="#user-content-icon-attribution"
+                  id="user-content-icon-attribution"
+                  name="user-content-icon-attribution"
+                  ><span
+                    aria-hidden="true"
+                    class="octicon octicon-link"
+                  ></span></a
+                >Atribuição do Ícone
+              </h2>
+              <p>
+                <a
+                  href="https://www.flaticon.com/free-icons/communication"
+                  rel="nofollow"
+                  >Ícones de comunicação criados por Vectors Market -
+                  Flaticon</a
+                >
+              </p>
+              <h2 id="user-content-legal">
+                <a
+                  aria-hidden="true"
+                  class="anchor"
+                  href="#user-content-legal"
+                  id="user-content-legal"
+                  name="user-content-legal"
+                  ><span
+                    aria-hidden="true"
+                    class="octicon octicon-link"
+                  ></span></a
+                >Legal
+              </h2>
+              <p>
+                Este código não é de forma alguma afiliado, autorizado, mantido,
+                patrocinado ou endossado pelo WhatsApp ou qualquer uma de suas
+                afiliadas ou subsidiárias. Este é um software independente e não
+                oficial. Use por sua própria conta e risco.
+              </p>
+              <h2 id="user-content-cryptography-notice">
+                <a
+                  aria-hidden="true"
+                  class="anchor"
+                  href="#user-content-cryptography-notice"
+                  id="user-content-cryptography-notice"
+                  name="user-content-cryptography-notice"
+                  ><span
+                    aria-hidden="true"
+                    class="octicon octicon-link"
+                  ></span></a
+                >Aviso sobre Criptografia
+              </h2>
+              <p>
+                Esta distribuição inclui software criptográfico. O país em que
+                você reside atualmente pode ter restrições sobre a importação,
+                posse, uso e/ou reexportação para outro país de software de
+                criptografia. ANTES de usar qualquer software de criptografia,
+                verifique as leis, regulamentos e políticas do seu país sobre a
+                importação, posse ou uso e reexportação de software de
+                criptografia, para ver se isso é permitido. Veja
+                <a href="http://www.wassenaar.org/" rel="nofollow"
+                  >http://www.wassenaar.org/</a
+                >
+                para mais informações.
+              </p>
+              <p>
+                O Departamento de Comércio dos EUA, Bureau of Industry and
+                Security (BIS), classificou este software como Export Commodity
+                Control Number (ECCN) 5D002.C.1, que inclui software de
+                segurança da informação usando ou executando funções
+                criptográficas com algoritmos assimétricos. A forma e maneira
+                desta distribuição a torna elegível para exportação sob a
+                License Exception ENC Technology Software Unrestricted (TSU)
+                (consulte as Export Administration Regulations do BIS, Seção
+                740.13) tanto para código objeto quanto para código fonte.
+              </p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

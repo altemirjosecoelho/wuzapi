@@ -34,7 +34,7 @@ func (v Values) Get(key string) string {
 	return v.m[key]
 }
 
-var messageTypes = []string{"Message", "ReadReceipt", "Presence", "HistorySync", "ChatPresence", "All"}
+var messageTypes = []string{"Message", "ReadReceipt", "Presence", "HistorySync", "ChatPresence","Connection", "All"}
 
 func (s *server) authadmin(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -210,7 +210,7 @@ func (s *server) Connect() http.HandlerFunc {
 				}
 			}
 			eventstring = strings.Join(subscribedEvents, ",")
-			_, err = s.db.Exec("UPDATE users SET events=$1 WHERE id=$2", eventstring, userid)
+			//_, err = s.db.Exec("UPDATE users SET events=$1 WHERE id=$2", eventstring, userid)
 			if err != nil {
 				log.Warn().Msg("Could not set events in users table")
 			}
@@ -267,7 +267,7 @@ func (s *server) Disconnect() http.HandlerFunc {
 			if clientPointer[userid].IsLoggedIn() == true {
 				log.Info().Str("jid", jid).Msg("Disconnection successfull")
 				killchannel[userid] <- true
-				_, err := s.db.Exec("UPDATE users SET events=$1 WHERE id=$2", "", userid)
+				_, err := s.db.Exec("UPDATE users SET connected=0 WHERE id=$1", userid)
 				if err != nil {
 					log.Warn().Str("userid", txtid).Msg("Could not set events in users table")
 				}
@@ -2065,18 +2065,25 @@ func (s *server) GetUser() http.HandlerFunc {
 
 		var jids []types.JID
 		for _, arg := range t.Phone {
+			// Formatar o número de telefone antes de criar o JID
+			// Adicionar sufixo @s.whatsapp.net se não existir
+			if !strings.Contains(arg, "@") {
+				arg = arg + "@s.whatsapp.net"
+			}
+			
 			jid, err := types.ParseJID(arg)
 			if err != nil {
+				s.Respond(w, r, http.StatusBadRequest, errors.New(fmt.Sprintf("Invalid phone number format: %v", err)))
 				return
 			}
 			jids = append(jids, jid)
 		}
-		resp, err := clientPointer[userid].GetUserInfo(jids)
 
+		resp, err := clientPointer[userid].GetUserInfo(jids)
 		if err != nil {
-			msg := fmt.Sprintf("Failed to get user info: %v", err)
+			msg := fmt.Sprintf("Falha ao obter informações do usuário: %v", err)
 			log.Error().Msg(msg)
-			s.Respond(w, r, http.StatusInternalServerError, msg)
+			s.Respond(w, r, http.StatusInternalServerError, errors.New(msg))
 			return
 		}
 
@@ -2095,6 +2102,91 @@ func (s *server) GetUser() http.HandlerFunc {
 		}
 		return
 	}
+}
+
+func (s *server) IsOnWhatsApp() http.HandlerFunc {
+    type checkUserStruct struct {
+        Phone string `json:"Phone"`
+    }
+
+    type ResponseStruct struct {
+        JID           string `json:"jid"`
+        Number        string `json:"number"`
+        ProfilePicUrl string `json:"profile_pic_url,omitempty"`
+    }
+
+    return func(w http.ResponseWriter, r *http.Request) {
+        txtid := r.Context().Value("userinfo").(Values).Get("Id")
+        userid, _ := strconv.Atoi(txtid)
+
+        if clientPointer[userid] == nil {
+            s.Respond(w, r, http.StatusInternalServerError, errors.New("cliente WhatsApp não inicializado"))
+            return
+        }
+
+        decoder := json.NewDecoder(r.Body)
+        var t checkUserStruct
+        err := decoder.Decode(&t)
+        if err != nil {
+            s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+            return
+        }
+
+        if t.Phone == "" {
+            s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+            return
+        }
+
+        // Faz a consulta no WhatsApp com um array contendo apenas um número
+        resp, err := clientPointer[userid].IsOnWhatsApp([]string{t.Phone})
+        if err != nil {
+            s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("erro ao consultar número: %v", err)))
+            return
+        }
+
+        // Como só temos um número, podemos pegar o primeiro resultado
+        if len(resp) > 0 {
+            status := resp[0]
+            if !status.IsIn {
+                s.Respond(w, r, http.StatusNotFound, errors.New("número não encontrado no WhatsApp"))
+                return
+            }
+
+            // Extrai o número do JID fazendo split no @
+            jidParts := strings.Split(status.JID.String(), "@")
+            number := jidParts[0]
+
+            // Busca a foto do perfil
+            profilePic, err := clientPointer[userid].GetProfilePictureInfo(status.JID, &whatsmeow.GetProfilePictureParams{
+                Preview: false,
+            })
+
+            response := ResponseStruct{
+                JID:    status.JID.String(),
+                Number: number,
+            }
+
+            // Adiciona a URL da foto do perfil se disponível
+            if err == nil && profilePic != nil {
+                response.ProfilePicUrl = profilePic.URL
+            }
+
+            // Configura o cabeçalho e status da resposta
+            w.Header().Set("Content-Type", "application/json")
+            w.WriteHeader(http.StatusOK)
+
+            // Usa json.Encoder para evitar escape de caracteres
+            encoder := json.NewEncoder(w)
+            encoder.SetEscapeHTML(false)
+            if err := encoder.Encode(response); err != nil {
+                s.Respond(w, r, http.StatusInternalServerError, err)
+            }
+            return
+        } else {
+            s.Respond(w, r, http.StatusInternalServerError, errors.New("nenhuma resposta recebida do WhatsApp"))
+        }
+        return
+    }
 }
 
 // Gets avatar info for user
@@ -2155,11 +2247,13 @@ func (s *server) GetAvatar() http.HandlerFunc {
 
 		log.Info().Str("id", pic.ID).Str("url", pic.URL).Msg("Got avatar")
 
-		responseJson, err := json.Marshal(pic)
-		if err != nil {
+		// Use json.Encoder to avoid escaping Unicode
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		encoder.SetEscapeHTML(false)
+		if err := encoder.Encode(pic); err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
-		} else {
-			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 		return
 	}
@@ -3144,10 +3238,10 @@ func (s *server) DeleteUser() http.HandlerFunc {
 
 		// Get the user ID from the request URL
 		vars := mux.Vars(r)
-		userID := vars["id"]
+		token := vars["token"]
 
 		// Delete the user from the database
-		result, err := s.db.Exec("DELETE FROM users WHERE id=$1", userID)
+		result, err := s.db.Exec("DELETE FROM users WHERE token=$1", token)
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("Problem accessing DB"))
 			return

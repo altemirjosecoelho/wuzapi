@@ -2,7 +2,11 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strconv"
+	"time"
+
+	"github.com/go-resty/resty/v2"
 )
 
 func Find(slice []string, val string) bool {
@@ -31,9 +35,14 @@ func callHook(myurl string, payload map[string]string, id int) {
         log.Debug().Str(key, value).Msg("")
     }
 
-    _, err := clientHttp[id].R().SetFormData(payload).Post(myurl)
+    resp, err := clientHttp[id].R().SetFormData(payload).Post(myurl)
     if err != nil {
         log.Debug().Str("error",err.Error())
+    }
+
+    // Salvar log do webhook se estiver habilitado
+    if os.Getenv("ENABLE_WEBHOOK_FILE") == "true" {
+        logWebhook(myurl, payload, resp, err)
     }
 }
 
@@ -59,6 +68,11 @@ func callHookFile(myurl string, payload map[string]string, id int, file string) 
         SetFormData(finalPayload).
         Post(myurl)
 
+    // Salvar log do webhook se estiver habilitado
+    if os.Getenv("ENABLE_WEBHOOK_FILE") == "true" {
+        logWebhook(myurl, finalPayload, resp, err)
+    }
+
     if err != nil {
         log.Error().Err(err).Str("url", myurl).Msg("Failed to send POST request")
         return fmt.Errorf("failed to send POST request: %w", err)
@@ -71,4 +85,29 @@ func callHookFile(myurl string, payload map[string]string, id int, file string) 
     log.Info().Int("status", resp.StatusCode()).Str("body", string(resp.Body())).Msg("POST request completed")
 
     return nil
+}
+
+// Função para salvar os logs do webhook em arquivo
+func logWebhook(url string, payload map[string]string, resp *resty.Response, err error) {
+    now := time.Now().Format("2006-01-02 15:04:05")
+    logEntry := fmt.Sprintf("\n[%s] Webhook enviado\nURL: %s\nPayload: %v\n", now, url, payload)
+    
+    if err != nil {
+        logEntry += fmt.Sprintf("Erro: %v\n", err)
+    } else if resp != nil {
+        logEntry += fmt.Sprintf("Status: %d\nResposta: %s\n", resp.StatusCode(), string(resp.Body()))
+    }
+    
+    logEntry += "----------------------------------------\n"
+
+    f, err := os.OpenFile("webhook_log.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+    if err != nil {
+        log.Error().Err(err).Msg("Erro ao abrir arquivo de log do webhook")
+        return
+    }
+    defer f.Close()
+
+    if _, err := f.WriteString(logEntry); err != nil {
+        log.Error().Err(err).Msg("Erro ao escrever no arquivo de log do webhook")
+    }
 }

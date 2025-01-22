@@ -8,11 +8,10 @@ API calls should be made with content type json, and parameters sent into the re
 
 The following _webhook_ endpoints are used to get or set the webhook that will be called whenever a message or event is received. Available event types are:
 
-* Message
-* ReadReceipt
-* HistorySync
-* ChatPresence
-
+- Message
+- ReadReceipt
+- HistorySync
+- ChatPresence
 
 ## Sets webhook
 
@@ -22,19 +21,19 @@ Endpoint: _/webhook_
 
 Method: **POST**
 
-
 ```
 curl -s -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"webhookURL":"https://some.server/webhook"}' http://localhost:8080/webhook
 ```
+
 Response:
 
 ```json
-{ 
-  "code": 200, 
-  "data": { 
-    "webhook": "https://example.net/webhook" 
-  }, 
-  "success": true 
+{
+  "code": 200,
+  "data": {
+    "webhook": "https://example.net/webhook"
+  },
+  "success": true
 }
 ```
 
@@ -51,15 +50,17 @@ Method: **GET**
 ```
 curl -s -X GET -H 'Token: 1234ABCD' http://localhost:8080/webhook
 ```
+
 Response:
+
 ```json
-{ 
-  "code": 200, 
-  "data": { 
-    "subscribe": [ "Message" ], 
-    "webhook": "https://example.net/webhook" 
-  }, 
-  "success": true 
+{
+  "code": 200,
+  "data": {
+    "subscribe": ["Message"],
+    "webhook": "https://example.net/webhook"
+  },
+  "success": true
 }
 ```
 
@@ -69,16 +70,16 @@ Response:
 
 The following _session_ endpoints are used to start a session to Whatsapp servers in order to send and receive messages
 
-## Connect  
+## Connect
 
-Connects to Whatsapp servers. If is there no existing session it will initiate a QR scan that can be retrieved via the [/session/qr](#user-content-gets-qr-code) endpoint. 
-You can subscribe to different types of messages so they are POSTED to your configured webhook. 
-Available message types to subscribe to are: 
+Connects to Whatsapp servers. If is there no existing session it will initiate a QR scan that can be retrieved via the [/session/qr](#user-content-gets-qr-code) endpoint.
+You can subscribe to different types of messages so they are POSTED to your configured webhook.
+Available message types to subscribe to are:
 
-* Message
-* ReadReceipt
-* HistorySync
-* ChatPresence
+- Message
+- ReadReceipt
+- HistorySync
+- ChatPresence
 
 If you set Immediate to false, the action will wait 10 seconds to verify a successful login. If Immediate is not set or set to true, it will return immedialty, but you will have to check shortly after the /session/status as your session might be disconnected shortly after started if the session was terminated previously via the phone/device.
 
@@ -87,7 +88,7 @@ Endpoint: _/session/connect_
 Method: **POST**
 
 ```
-curl -s -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"Subscribe":["Message"],"Immediate":false}' http://localhost:8080/session/connect 
+curl -s -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"Subscribe":["Message"],"Immediate":false}' http://localhost:8080/session/connect
 ```
 
 Response:
@@ -116,12 +117,11 @@ Endpoint: _/session/disconnect_
 
 Method: **POST**
 
-
 ```
-curl -s -X POST -H 'Token: 1234ABCD' http://localhost:8080/session/disconnect 
+curl -s -X POST -H 'Token: 1234ABCD' http://localhost:8080/session/disconnect
 ```
 
-Response: 
+Response:
 
 ```json
 {
@@ -137,14 +137,14 @@ Response:
 
 ## Logout
 
-Disconnects from whatsapp websocket *and* finishes the session (so it will be required to scan a  QR code the next time a connection is initiated)
+Disconnects from whatsapp websocket _and_ finishes the session (so it will be required to scan a QR code the next time a connection is initiated)
 
 Endpoint: _/session/logout_
 
 Method: **POST**
 
 ```
-curl -s -X POST -H 'Token: 1234ABCD' http://localhost:8080/session/logout 
+curl -s -X POST -H 'Token: 1234ABCD' http://localhost:8080/session/logout
 ```
 
 Response:
@@ -157,7 +157,6 @@ Response:
   },
   "success": true
 }
-
 ```
 
 ---
@@ -173,7 +172,7 @@ Endpoint: _/session/status_
 Method: **GET**
 
 ```
-curl -s -H 'Token: 1234ABCD' http://localhost:8080/session/status 
+curl -s -H 'Token: 1234ABCD' http://localhost:8080/session/status
 ```
 
 Response:
@@ -187,12 +186,11 @@ Response:
   },
   "success": true
 }
-
 ```
 
 ---
 
-## Gets QR code  
+## Gets QR code
 
 Retrieves QR code, session must be connected to Whatsapp servers and logged in must be false in order for the QR code to be generated. The generated code
 will be returned encoded in base64 embedded format.
@@ -204,14 +202,16 @@ Method: **GET**
 ```
 curl -s -H 'Token: 1234ABCD' http://localhost:8080/session/qr
 ```
+
 Response:
+
 ```json
-{ 
-  "code": 200, 
-  "data": { 
-    "QRCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAABmvDolAAAABlBMVEX///8AAABVwtN+AAAEw0lEQVR42uyZ..." 
-  }, 
-  "success": true 
+{
+  "code": 200,
+  "data": {
+    "QRCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAABmvDolAAAABlBMVEX///8AAABVwtN+AAAEw0lEQVR42uyZ..."
+  },
+  "success": true
 }
 ```
 
@@ -230,7 +230,7 @@ Endpoint: _/user/info_
 Method: **POST**
 
 ```
-curl -s -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"Phone":["5491155554445","5491155554444"]}' http://localhost:8080/user/info 
+curl -s -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"Phone":["5491155554445","5491155554444"]}' http://localhost:8080/user/info
 ```
 
 Response:
@@ -375,6 +375,43 @@ Response:
 
 ---
 
+## Checks if number is on WhatsApp
+
+Verifica se um número está registrado no WhatsApp e retorna seu JID e URL da foto do perfil.
+
+Endpoint: _/user/onwhatsapp_
+
+Method: **POST**
+
+```
+curl -s -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"Phone":"5547984080056"}' http://localhost:8080/user/onwhatsapp
+```
+
+Response:
+
+```json
+{
+  "code": 200,
+  "data": {
+    "jid": "5547984080056@s.whatsapp.net",
+    "number": "5547984080056",
+    "profile_pic_url": "https://pps.whatsapp.net/v/t61.24694-24/473396707_1515722962422447_n.jpg?ccb=11-4&oh=01_Q5AaIOY2n5ObBBiIq2TtqH23aO1V0Or8AI6bHOKWlw9X8zcA&oe=679D4CD3"
+  },
+  "success": true
+}
+```
+
+Em caso de número não encontrado:
+
+```json
+{
+  "code": 404,
+  "error": "número não encontrado no WhatsApp",
+  "success": false
+}
+```
+
+---
 
 # Chat
 
@@ -383,7 +420,7 @@ same for all message types.
 
 ## Send Text Message
 
-Sends a text message or reply. For replies, ContextInfo data should be completed with the StanzaID (ID of the message we are replying to), and Participant (user JID we are replying to). If ID is 
+Sends a text message or reply. For replies, ContextInfo data should be completed with the StanzaID (ID of the message we are replying to), and Participant (user JID we are replying to). If ID is
 ommited, a random message ID will be generated.
 
 Endpoint: _/chat/send/text_
@@ -395,6 +432,7 @@ Example sending a new message:
 ```
 curl -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"Phone":"5491155554444","Body":"Hellow Meow", "Id": "90B2F8B13FAC8A9CF6B06E99C7834DC5"}' http://localhost:8080/chat/send/text
 ```
+
 Example replying to some message:
 
 ```
@@ -425,7 +463,6 @@ Endpoint: _/chat/send/template_
 
 Method: **POST**
 
-
 ```
 curl -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"Phone":"5491155554444","Content":"Template content","Footer":"Some footer text","Buttons":[{"DisplayText":"Yes","Type":"quickreply"},{"DisplayText":"No","Type":"quickreply"},{"DisplayText":"Visit Site","Type":"url","Url":"https://www.fop2.com"},{"DisplayText":"Llamame","Type":"call","PhoneNumber":"1155554444"}]}' http://localhost:8080/chat/send/template
 ```
@@ -440,19 +477,17 @@ Endpoint: _/chat/send/audio_
 
 Method: **POST**
 
-
 ```
 curl -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"Phone":"5491155554444","Audio":"data:audio/ogg;base64,T2dnUw..."}' http://localhost:8080/chat/send/audio
 ```
 
 ## Send Image Message
 
-Sends an Image message. Image must be in png or jpeg and base64 encoded in embedded format. You can optionally specify a text Caption 
+Sends an Image message. Image must be in png or jpeg and base64 encoded in embedded format. You can optionally specify a text Caption
 
 Endpoint: _/chat/send/image_
 
 Method: **POST**
-
 
 ```
 curl -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"Phone":"5491155554444","Caption":"Look at this", "Image":"data:image/jpeg;base64,iVBORw0KGgoAAAANSU..."}' http://localhost:8080/chat/send/image
@@ -468,7 +503,6 @@ Endpoint: _/chat/send/document_
 
 Method: **POST**
 
-
 ```
 curl -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"Phone":"5491155554444","FileName":"hola.txt","Document":"data:application/octet-stream;base64,aG9sYSBxdWUgdGFsCg=="}' http://localhost:8080/chat/send/document
 ```
@@ -483,11 +517,9 @@ Endpoint: _/chat/send/video_
 
 Method: **POST**
 
-
 ```
 curl -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"Phone":"5491155554444","Caption":"Look at this", "Video":"data:image/jpeg;base64,iVBORw0KGgoAAAANSU..."}' http://localhost:8080/chat/send/video
 ```
-
 
 ---
 
@@ -499,11 +531,9 @@ Endpoint: _/chat/send/sticker_
 
 Method: **POST**
 
-
 ```
 curl -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"Phone":"5491155554444","PngThumbnail":"VBORgoAANSU=", "Sticker":"data:image/jpeg;base64,iVBORw0KGgoAAAANSU..."}' http://localhost:8080/chat/send/sticker
 ```
-
 
 ---
 
@@ -514,7 +544,6 @@ Sends a Location message. Latitude and Longitude must be passed, with an optiona
 Endpoint: _/chat/send/location_
 
 Method: **POST**
-
 
 ```
 curl -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"Latitude":48.858370,"Longitude":2.294481,"Phone":"5491155554444","Name":"Paris"}' http://localhost:8080/chat/send/location
@@ -529,7 +558,6 @@ Sends a Contact message. Both Vcard and Name body parameters are mandatory.
 Endpoint: _/chat/send/contact_
 
 Method: **POST**
-
 
 ```
 curl -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"Phone":"5491155554444","Name":"Casa","Vcard":"BEGIN:VCARD\nVERSION:3.0\nN:Doe;John;;;\nFN:John Doe\nORG:Example.com Inc.;\nTITLE:Imaginary test person\nEMAIL;type=INTERNET;type=WORK;type=pref:johnDoe@example.org\nTEL;type=WORK;type=pref:+1 617 555 1212\nTEL;type=WORK:+1 (617) 555-1234\nTEL;type=CELL:+1 781 555 1212\nTEL;type=HOME:+1 202 555 1212\nitem1.ADR;type=WORK:;;2 Enterprise Avenue;Worktown;NY;01111;USA\nitem1.X-ABADR:us\nitem2.ADR;type=HOME;type=pref:;;3 Acacia Avenue;Hoitem2.X-ABADR:us\nEND:VCARD"}' http://localhost:8080/chat/send/contact
@@ -553,7 +581,7 @@ curl -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"
 
 ## Mark message(s) as read
 
-Indicates that one or more messages were read. Id is an array of messages Ids. 
+Indicates that one or more messages were read. Id is an array of messages Ids.
 Chat must always be set to the chat ID (user ID in DMs and group ID in group chats).
 Sender must be set in group chats and must be the user ID who sent the message.
 
@@ -649,12 +677,12 @@ endpoint: _/group/list_
 
 method: **GET**
 
-
 ```
-curl -s -X GET -H 'Token: 1234ABCD' http://localhost:8080/group/list 
-````
+curl -s -X GET -H 'Token: 1234ABCD' http://localhost:8080/group/list
+```
 
 Response:
+
 ```json
 {
   "code": 200,
@@ -711,12 +739,11 @@ endpoint: _/group/invitelink_
 
 method: **GET**
 
-
 ```
-curl -s -X GET -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"GroupJID":"120362023605733675@g.us"}' http://localhost:8080/group/invitelink 
+curl -s -X GET -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"GroupJID":"120362023605733675@g.us"}' http://localhost:8080/group/invitelink
 ```
 
-Response: 
+Response:
 
 ```json
 {
@@ -738,12 +765,11 @@ endpoint: _/group/info_
 
 method: **GET**
 
-
 ```
 curl -s -X GET -H 'Token: 1234ABCD' -H 'Content-Type: application/json' --data '{"GroupJID":"120362023605733675@g.us"}' http://localhost:8080/group/info
 ```
 
-Response: 
+Response:
 
 ```json
 {
@@ -797,9 +823,8 @@ endpoint: _/group/photo_
 
 method: **POST**
 
-
 ```
-curl -s -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' -d '{"GroupJID":"120362023605733675@g.us","Image":"data:image/jpeg;base64,AABB00DD-"}' http://localhost:8080/group/photo 
+curl -s -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' -d '{"GroupJID":"120362023605733675@g.us","Image":"data:image/jpeg;base64,AABB00DD-"}' http://localhost:8080/group/photo
 ```
 
 Response:
@@ -815,7 +840,6 @@ Response:
 }
 ```
 
-
 ---
 
 ## Changes group name
@@ -826,10 +850,8 @@ endpoint: _/group/name_
 
 method: **POST**
 
-
-
 ```
-curl -s -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' -d '{"GroupJID":"120362023605733675@g.us","Name":"New Group Name"}' http://localhost:8080/group/name 
+curl -s -X POST -H 'Token: 1234ABCD' -H 'Content-Type: application/json' -d '{"GroupJID":"120362023605733675@g.us","Name":"New Group Name"}' http://localhost:8080/group/name
 ```
 
 Response:
@@ -843,4 +865,3 @@ Response:
   "success": true
 }
 ```
-

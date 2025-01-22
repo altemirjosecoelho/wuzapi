@@ -1,0 +1,13 @@
+{
+  "name": "mwuzapi",
+  "version": "1.0.0",
+  "description": "<img src=\"static/favicon.ico\" width=\"30\"> WuzAPI is an implementation of [@tulir/whatsmeow](https://github.com/tulir/whatsmeow) library as a simple RESTful API service with multiple device support and concurrent sessions.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "go build . && ./wuzapi",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

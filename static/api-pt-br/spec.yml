@@ -1,0 +1,1722 @@
+openapi: 3.0.0
+info:
+  title: WUZAPI
+  description: "WUZAPI implementa uma API REST para WhatsApp.\n\nPara autenticação você deve passar o cabeçalho 'token' com um token que será comparado com a tabela 'users' no banco de dados sqlite dbdata/users.db).\n\nVocê pode inserir um usuário de exemplo com este comando:\n\n<pre>sqlite3 settings.db \"insert into users ('name','token') values ('John','1234ABCD')\"</pre>\n\nVocê precisará escanear o QR code usando seu próprio front end ou poderá usar o provided one [here](/login?token=1234ABCD).\n\nPara receber messages you will need to create your own server and set its URL as hook using the [webhook](#Webhook) API call.\n\n <b>PS:</b> Phone numbers should have country code with or without the <b>+</b> sign eg: <b>5491155553934</b> or <b>+5491155553934</b>, but natively whatsapp requires no plus sign prefix."
+  version: "3.0"
+  termsOfService: ""
+
+schemes:
+  - http
+
+paths:
+  /admin/users:
+    get:
+      tags:
+        - Admin
+      summary: Listar usuários
+      description: Recupera uma lista de usuários do banco de dados.
+      responses:
+        200:
+          description: A JSON array of user objects
+          content:
+            application/json:
+              schema:
+                example:
+                  code: 200
+                  data:
+                    - id: 1
+                      name: John Doe
+                    - id: 2
+                      name: Jane Doe
+                  success: true
+    post:
+      tags:
+        - Admin
+      summary: Adicionar novo usuário
+      description: Adiciona um novo usuário ao banco de dados.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/definitions/CreateUser"
+      responses:
+        201:
+          description: User created
+          content:
+            application/json:
+              schema:
+                example:
+                  code: 201
+                  data:
+                    id: 1
+                    name: John Doe
+                  success: true
+
+  /admin/users/{id}:
+    delete:
+      tags:
+        - Admin
+      summary: Excluir um usuário
+      description: Exclui um usuário pelo seu ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of the user to delete
+          schema:
+            type: integer
+            example: 1
+      responses:
+        204:
+          description: User deleted
+          content:
+            application/json:
+              schema:
+                example:
+                  code: 204
+                  success: true
+
+  /webhook:
+    get:
+      tags:
+        - Webhook
+      summary: Mostrar webhook
+      description: |
+        Obtém o webhook configurado e eventos inscritos.
+
+        ## Webhook
+
+        Os seguintes endpoints de _webhook_ são usados para obter ou definir o webhook que será chamado sempre que uma mensagem ou evento for recebido. Os tipos de eventos disponíveis são:
+
+        * Message (Mensagem)
+        * ReadReceipt (Confirmação de Leitura)
+        * Presence (Presença)
+        * HistorySync (Sincronização de Histórico)
+        * ChatPresence (Presença no Chat)
+        * All (inscreve-se em todos os tipos de eventos)
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "subscribe": ["Message", "ReadReceipt"],
+                        "webhook": "https://example.net/webhook",
+                      },
+                    "success": true,
+                  }
+
+    post:
+      tags:
+        - Webhook
+      summary: Definir webhook
+      description: |
+        Define o webhook que será usado para enviar informações via POST quando mensagens forem recebidas e configura os eventos para se inscrever.
+
+        ## Webhook
+
+        Os seguintes endpoints de _webhook_ são usados para obter ou definir o webhook que será chamado sempre que uma mensagem ou evento for recebido. Os tipos de eventos disponíveis são:
+
+        * Message (Mensagem)
+        * ReadReceipt (Confirmação de Leitura)
+        * Presence (Presença)
+        * HistorySync (Sincronização de Histórico)
+        * ChatPresence (Presença no Chat)
+        * All (inscreve-se em todos os tipos de eventos)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/definitions/WebhookSet"
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "webhook": "https://example.net/webhook",
+                        "events": ["Message", "ReadReceipt"],
+                      },
+                    "success": true,
+                  }
+    delete:
+      tags:
+        - Webhook
+      summary: Deletes webhook
+      description: Removes the configured webhook and clears events for the user
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      { "Details": "Webhook and events deleted successfully" },
+                    "success": true,
+                  }
+  /webhook/update:
+    put:
+      tags:
+        - Webhook
+      summary: Atualizar webhook
+      description: |
+        Atualiza a URL do webhook, eventos e status de ativação.
+
+        ## Webhook
+
+        Os seguintes endpoints de _webhook_ são usados para obter ou definir o webhook que será chamado sempre que uma mensagem ou evento for recebido. Os tipos de eventos disponíveis são:
+
+        * Message (Mensagem)
+        * ReadReceipt (Confirmação de Leitura)
+        * Presence (Presença)
+        * HistorySync (Sincronização de Histórico)
+        * ChatPresence (Presença no Chat)
+        * All (inscreve-se em todos os tipos de eventos)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/definitions/WebhookUpdate"
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "webhook": "https://example.net/webhook",
+                        "events": ["Message", "ReadReceipt"],
+                        "active": true,
+                      },
+                    "success": true,
+                  }
+
+  /session/connect:
+    post:
+      tags:
+        - Session
+      summary: Conectar aos servidores WhatsApp
+      description: "Inicia conexão com os servidores WhatsApp.\n\nSe não houver sessão anterior criada, it will generate a QR code that can be retrieved via the [qr](#/Session/get_session_qr) API call.\n\nSe o optional Subscribe is supplied it will limit webhooks to the specified event types: Message,ReadReceipt,Presence,HistorySync,ChatPresence.\n\nSe no Subscribe is supplied it will subscribe to All events.\n\nSe Immediate is set to false, the action will wait for 10 seconds to retrieve actual connection status from whatsapp, otherwise it will return immediatly.\n\nWhen setting Immediate to true you should check for actual connection status after a few seconds via the [status](#/Session/get_session_status) API call as your connection might fail if the session was closed from another device."
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/Connect"
+
+      responses:
+        200:
+          description: Response
+
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "details": "Connected!",
+                        "events": "Message",
+                        "jid": "5491155555555.0:53@s.whatsapp.net",
+                        "webhook": "https://some.site/webhook?request=parameter",
+                      },
+                    "success": true,
+                  }
+  /session/disconnect:
+    post:
+      tags:
+        - Session
+      summary: Desconectar dos servidores WhatsApp
+      description: Fecha a conexão com os servidores WhatsApp. A sessão não é encerrada, isso significa que ao chamar connect novamente será reutilizada a sessão anterior evitando QR code scanning
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data": { "Details": "Disconnected" },
+                    "success": true,
+                  }
+  /session/logout:
+    post:
+      tags:
+        - Session
+      summary: Sair do WhatsApp
+      description: Fecha a conexão com os servidores WhatsApp e encerra a sessão. Isso significa que na próxima vez que connect for chamado, será necessário escanear o QR novamente do telefone para conectar
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data": { "Details": "Logged out" },
+                    "success": true,
+                  }
+  /session/status:
+    get:
+      tags:
+        - Session
+      summary: Obter status da conexão e sessão
+      description: Obtém o status da conexão, incluindo conexão websocket e status de login (sessão)
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data": { "Connected": true, "LoggedIn": true },
+                    "success": true,
+                  }
+  /session/pairphone:
+    post:
+      tags:
+        - Session
+      summary: Obter código de pareamento por telefone
+      description: Obtém o código para inserir no cliente whatsapp ao parear por número de telefone em vez do código QR
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/Pairphone"
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data": { "LinkingCode": "9H3J-H3J8" },
+                    "success": true,
+                  }
+  /session/qr:
+    get:
+      tags:
+        - Session
+      summary: Obter código QR para escaneamento
+      description: Obtém o código QR se o usuário estiver conectado mas não logado. Se o usuário já estiver logado, QRCode estará vazio.
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "QRCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAABmvDolAAAABlBMVEX///8AAABVwtN+AAAEw0lEQVR42uyZPa7zqhaGX0ThLmsCkZlGCktMKaU76FxmSkgUmQZWJkA6CuT3avlLvrNvvRMX9x6KXWQ/UhCsn2cR/Lv+v5YhudQ6njEs1bBjqGYDwlJJpoOAArtUbK4Pi5jN3qPAlCkstcAeBazMUaoj78RpxGW4yWYzWVfmzwFLlLX4O+VkkucN5tFDOxiIAvfoA/X4uVQ4sgUcCBTYCG7AEGGKvbdrBabQ8OOyvg3ovm4ynqfLXJ9rvi+303ie5vm/gvZXgK6BLC7fo5hiG4KwW7b6I/2+DJi1+ybVFQyx6o6bbKPVDCyjTwcBZB9uevBtAEafhiosCFH/4kNA8i1gg02B3KxezGbzEjUCDgIwYppR3SNdgtY3H0M1j8xFzCscvg/8uQvZAB9piidv1RXfZhbHdAwAlzsCNCaJDdMF4WQeeSGACZ8BMNl4FZYJA7j2YalPPhhngetHAaZPcyBg2wyYdAk0fKQ5yPja5PcBzTZW4uxJ2bTGwmxnu/BH4vwSgEsYItcCH+VZJt/AYhmHatbXdX8d2JvaTVzxCVW2aVhqheXSqvnR9b4L6AoUx3zX+jZd5rDB5jbLuv0txd8GRs+liuv+TsKloQWujxxRYf5s8gOA7fMVK9PQuDtMNCx2ibIdCMCy1s0yQU6Od9bqim1BuzoOAgzTHOiKv0d5Mt+XClN8DBxN/wxg2G2DbDYNJExCqE+Ne8poXoLxdUA/w5VrnxBQ9fjlqaJMwWgPAzLjtfKRW4A21ojnStX0dX2d5PeB0fawu2pChcuM4bk+tLmbMn0GMJslb5ptDXySbb5W1+0SyVcJOgRIQxSc7X0RUSvGs2DSeaz4gwCMNi/7XNACZc0KbPBtruv2KQA+DVFladBvt4xywhmh1Xd2fx8wzGTUltqCWrHWgqL7Jg8E0hSiFJfbUJ/Fpx3L1OHsVR8+APgoZMclUKvcft2+zTBrwjHArosim4ZcfW4Y4lVWnYXg2A8C9C5aEFXDoEJzmXFyfZoH/p0Wvw7oXoZbNQ823ase1wk2DQ3u7XK/BkzOqovwpM68Ko+jUyPFu6F8H4DvqsAuaUMZJ6+azjTPdS32KMBkLnpQ3VPnbsZgiktALW91/wDQEV5V7gT4JT6L62GRzeV0EDDC7rVFax2ZW6Aa6V5h/FEAgBlSbLrMVScU1s09+jxwG/9q87cB/Yxw3acBsk2Yw+nPf9Y1p88ARlNPtvPkF3LlPQYp8MtSx/FtpF8H4DNrZd8fOtTOxJSzXdo/c/fXAbN2DLeKs1dxHeEZZVWaju/3h18CcDk3qePZpllglDZ89MCq8nIQoDPAVaPi3iAFFwS1xjjr+HcYwD+hri216vBZzQbbZsE44RhAp+sQxfTpApGCoV1NOfsl4pX+nwC65a1uLnkK9TSuVTOhaQ4cBOzvtDcZXU5Bdl28SrF9HqrZJhwD7O/VsZpi7xSz7pXW6ahQ1/dB/RrYf2QhLBmr1lNINVRZfw9BBwArc4SszGlWWd2fxB9cFvJQYKnUUWAgV22y5v1e/ffHpiOAqMLCiOpymwNGtxvk9s8mfwcU2CiydqvJbdKuSX0K8a/KHQDsMQkyeVbtISFif8mRcfwRtF8F/l3/O+s/AQAA///lM0dZSaTeTQAAAABJRU5ErkJggg==",
+                      },
+                    "success": true,
+                  }
+  /user/info:
+    post:
+      tags:
+        - User
+      summary: Obter informações sobre usuários no WhatsApp
+      description: Obtém informações extras sobre usuários no WhatsApp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/Checkuser"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "Users":
+                          {
+                            "5491155553935@s.whatsapp.net":
+                              {
+                                "Devices": [],
+                                "PictureID": "",
+                                "Status": "",
+                                "VerifiedName": null,
+                              },
+                            "5491155553934@s.whatsapp.net":
+                              {
+                                "Devices":
+                                  [
+                                    "5491155553934.0:0@s.whatsapp.net",
+                                    "5491155955934.0:6@s.whatsapp.net",
+                                  ],
+                                "PictureID": "1582328807",
+                                "Status": "🇦🇷",
+                                "VerifiedName": null,
+                              },
+                          },
+                      },
+                    "success": true,
+                  }
+  /user/check:
+    post:
+      tags:
+        - User
+      summary: Verificar se usuário tem WhatsApp
+      description: Verifica se usuários têm uma conta no WhatsApp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/Checkuser"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "Users":
+                          [
+                            {
+                              "IsInWhatsapp": true,
+                              "JID": "5491155553934@s.whatsapp.net",
+                              "Query": "5491155553934",
+                              "VerifiedName": "Company Name",
+                            },
+                            {
+                              "IsInWhatsapp": false,
+                              "JID": "5491155553935@s.whatsapp.net",
+                              "Query": "5491155553935",
+                              "VerifiedName": "",
+                            },
+                          ],
+                      },
+                    "success": true,
+                  }
+
+  /user/avatar:
+    post:
+      tags:
+        - User
+      summary: Obter informações da foto do perfil
+      description: Obtém informações sobre fotos de perfil dos usuários no WhatsApp, seja uma miniatura (Preview=true) ou foto completa.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/Checkavatar"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "URL": "https://pps.whatsapp.net/v/t61.24694-24/227295214_112447507729487_4643695328050510566_n.jpg?stp=dst-jpg_s96x96&ccb=11-4&oh=ja432434a91e8f41d86d341bx889c217&oe=543222A4",
+                    "ID": "1645308319",
+                    "Type": "preview",
+                    "DirectPath": "/v/t61.24694-24/227295214_112447507729487_4643695328050510566_n.jpg?stp=dst-jpg_s96x96&ccb=11-4&oh=ja432434a91e8f41d86d341ba889c217&oe=543222A4",
+                  }
+  /user/contacts:
+    get:
+      tags:
+        - User
+      summary: Obter todos os contatos da conta
+      description: Obtém lista completa de contatos para a conta conectada
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "5491122223333@s.whatsapp.net":
+                          {
+                            "BusinessName": "",
+                            "FirstName": "",
+                            "Found": true,
+                            "FullName": "",
+                            "PushName": "FOP2",
+                          },
+                        "549113334444@s.whatsapp.net":
+                          {
+                            "BusinessName": "",
+                            "FirstName": "",
+                            "Found": true,
+                            "FullName": "",
+                            "PushName": "Asternic",
+                          },
+                      },
+                  }
+  /user/onwhatsapp:
+    post:
+      tags:
+        - User
+      summary: Verificar se número está no WhatsApp
+      description: Verifica se um número está registrado no WhatsApp e retorna seu JID e URL da foto do perfil
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - Phone
+              properties:
+                Phone:
+                  type: string
+                  example: "5547984080056"
+      responses:
+        200:
+          description: Número encontrado no WhatsApp
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "jid": "5547984080056@s.whatsapp.net",
+                        "number": "5547984080056",
+                        "profile_pic_url": "https://pps.whatsapp.net/v/t61.24694-24/473396707_1515722962422447_n.jpg?ccb=11-4&oh=01_Q5AaIOY2n5ObBBiIq2TtqH23aO1V0Or8AI6bHOKWlw9X8zcA&oe=679D4CD3",
+                      },
+                    "success": true,
+                  }
+        404:
+          description: Número não encontrado no WhatsApp
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 404,
+                    "error": "número não encontrado no WhatsApp",
+                    "success": false,
+                  }
+
+  /chat/markread:
+    post:
+      tags:
+        - Chat
+      summary: Marcar mensagem como lida
+      description: Marca uma ou mais mensagens recebidas como lidas
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/Markread"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data": { "Details": "Message(s) marked as read" },
+                    "success": true,
+                  }
+  /chat/react:
+    post:
+      tags:
+        - Chat
+      summary: Reagir a uma mensagem
+      description: Envia uma reação para alguma mensagem. Phone, Body e Id são obrigatórios. Se a reação for para sua própria mensagem, prefixe Phone com 'me:'. Body deve ser o emoji da reação.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/ReactionText"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "Details": "Sent",
+                        "Id": "3EB06F9067F80BAB89FF",
+                        "Timestamp": "2022-05-10T12:49:08-03:00",
+                      },
+                    "success": true,
+                  }
+
+  /chat/send/text:
+    post:
+      tags:
+        - Chat
+      summary: Enviar mensagem de texto
+      description: Envia uma mensagem de texto. Phone e Body são obrigatórios. Se nenhum Id for fornecido, um aleatório será gerado. ContextInfo é opcional e usado ao responder alguma mensagem. StanzaId é o id da mensagem que estamos respondendo e participant quem escreveu aquela mensagem. Se enviando uma nova mensagem, ContextInfo pode ser omitido completamente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/MessageText"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "Details": "Sent",
+                        "Id": "90B2F8B13FAC8A9CF6B06E99C7834DC5",
+                        "Timestamp": "2022-04-20T12:49:08-03:00",
+                      },
+                    "success": true,
+                  }
+  /chat/send/image:
+    post:
+      tags:
+        - Chat
+      summary: Enviar mensagem de imagem
+      description: Envia uma mensagem de imagem (deve ser codificada em base64 nos formatos image/png ou image/jpeg)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/MessageImage"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "Details": "Sent",
+                        "Id": "90B2F8B13FAC8A9CF6B06E99C7834DC5",
+                        "Timestamp": "2022-04-20T12:49:08-03:00",
+                      },
+                    "success": true,
+                  }
+  /chat/send/audio:
+    post:
+      tags:
+        - Chat
+      summary: Enviar mensagem de áudio
+      description: Envia uma mensagem de áudio (deve ser codificada em base64 no formato opus, tipo mime audio/ogg)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/MessageAudio"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "Details": "Sent",
+                        "Id": "90B2F8B13FAC8A9CF6B06E99C7834DC5",
+                        "Timestamp": "2022-04-20T12:49:08-03:00",
+                      },
+                    "success": true,
+                  }
+  /chat/send/document:
+    post:
+      tags:
+        - Chat
+      summary: Enviar mensagem de documento
+      description: Envia qualquer documento (deve ser codificado em base64 usando mime application/octet-stream)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/MessageDocument"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "Details": "Sent",
+                        "Id": "90B2F8B13FAC8A9CF6B06E99C7834DC5",
+                        "Timestamp": "2022-04-20T12:49:08-03:00",
+                      },
+                    "success": true,
+                  }
+
+  /chat/send/template:
+    post:
+      tags:
+        - Chat
+      summary: Enviar mensagem de template
+      description: Envia uma mensagem de template, que pode conter botões de resposta rápida, botões de URL e botões de chamada
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/MessageTemplate"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "Details": "Sent",
+                        "Id": "90B2F8B13FAC8A9CF6B06E99C7834DC5",
+                        "Timestamp": "2022-04-20T12:49:08-03:00",
+                      },
+                    "success": true,
+                  }
+  /chat/send/video:
+    post:
+      tags:
+        - Chat
+      summary: Enviar mensagem de vídeo
+      description: Envia uma mensagem de vídeo (deve ser codificada em base64 no formato video/mp4 ou video/3gpp. Apenas codec de vídeo H.264 e codec de áudio AAC são suportados.)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/MessageVideo"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "Details": "Sent",
+                        "Id": "90B2F8B13FAC8A9CF6B06E99C7834DC5",
+                        "Timestamp": "2022-04-20T12:49:08-03:00",
+                      },
+                    "success": true,
+                  }
+  /chat/send/sticker:
+    post:
+      tags:
+        - Chat
+      summary: Enviar mensagem de sticker
+      description: Envia uma mensagem de sticker (deve ser codificada em base64 no formato image/webp)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/MessageSticker"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "Details": "Sent",
+                        "Id": "90B2F8B13FAC8A9CF6B06E99C7834DC5",
+                        "Timestamp": "2022-04-20T12:49:08-03:00",
+                      },
+                    "success": true,
+                  }
+
+  /chat/send/location:
+    post:
+      tags:
+        - Chat
+      summary: Enviar mensagem de localização
+      description: Envia uma mensagem de localização
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/MessageLocation"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "Details": "Sent",
+                        "Id": "90B2F8B13FAC8A9CF6B06E99C7834DC5",
+                        "Timestamp": "2022-04-20T12:49:08-03:00",
+                      },
+                    "success": true,
+                  }
+
+  /chat/send/contact:
+    post:
+      tags:
+        - Chat
+      summary: Enviar mensagem de contato
+      description: Envia uma mensagem de contato no formato VCARD
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/MessageContact"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "Details": "Sent",
+                        "Id": "90B2F8B13FAC8A9CF6B06E99C7834DC5",
+                        "Timestamp": "2022-04-20T12:49:08-03:00",
+                      },
+                    "success": true,
+                  }
+
+  /chat/downloadimage:
+    post:
+      tags:
+        - Chat
+      summary: Baixar imagem da mensagem
+      description: Baixa uma imagem de uma mensagem e retorna em formato Base64 codificado
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/DownloadImage"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "Data": "data:image/jpeg;base64,iVBORw0KGgoA5CYII...=",
+                        "Mimetype": "image/jpeg",
+                      },
+                    "success": true,
+                  }
+
+  /chat/downloadvideo:
+    post:
+      tags:
+        - Chat
+      summary: Baixar vídeo da mensagem
+      description: Baixa um vídeo de uma mensagem e retorna em formato Base64 codificado
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/DownloadImage"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "Data": "data:video/mp4;base64,iVBORw0KGgoA5CYII...=",
+                        "Mimetype": "video/mp4",
+                      },
+                    "success": true,
+                  }
+
+  /chat/downloaddocument:
+    post:
+      tags:
+        - Chat
+      summary: Baixar documento da mensagem
+      description: Baixa um documento de uma mensagem e retorna em formato Base64 codificado
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/DownloadImage"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "Data": "data:application/pdf;base64,iVBORw0KGgoA5CYII...=",
+                        "Mimetype": "application/pdf",
+                      },
+                    "success": true,
+                  }
+
+  /chat/presence:
+    post:
+      tags:
+        - Chat
+      summary: Definir presença no chat
+      description: Envia indicação se você está digitando ou não (state pode ser "composing" ou "paused"). Media opcional pode ser definido como "audio" para indicar gravação de mensagem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/ChatPresence"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data": { "Details": "Chat presence set successfuly" },
+                    "success": true,
+                  }
+
+  /group/list:
+    get:
+      tags:
+        - Group
+      summary: Listar grupos inscritos
+      description: Retorna lista completa de grupos inscritos
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "Groups":
+                          [
+                            {
+                              "AnnounceVersionID": "1650572126123738",
+                              "DisappearingTimer": 0,
+                              "GroupCreated": "2022-04-21T17:15:26-03:00",
+                              "IsAnnounce": false,
+                              "IsEphemeral": false,
+                              "IsLocked": false,
+                              "JID": "120362023605733675@g.us",
+                              "Name": "Super Group",
+                              "NameSetAt": "2022-04-21T17:15:26-03:00",
+                              "NameSetBy": "5491155554444@s.whatsapp.net",
+                              "OwnerJID": "5491155554444@s.whatsapp.net",
+                              "ParticipantVersionID": "1650234126145738",
+                              "Participants":
+                                [
+                                  {
+                                    "IsAdmin": true,
+                                    "IsSuperAdmin": true,
+                                    "JID": "5491155554444@s.whatsapp.net",
+                                  },
+                                  {
+                                    "IsAdmin": false,
+                                    "IsSuperAdmin": false,
+                                    "JID": "5491155553333@s.whatsapp.net",
+                                  },
+                                  {
+                                    "IsAdmin": false,
+                                    "IsSuperAdmin": false,
+                                    "JID": "5491155552222@s.whatsapp.net",
+                                  },
+                                ],
+                              "Topic": "",
+                              "TopicID": "",
+                              "TopicSetAt": "0001-01-01T00:00:00Z",
+                              "TopicSetBy": "",
+                            },
+                          ],
+                      },
+                    "success": true,
+                  }
+  /group/invitelink:
+    get:
+      tags:
+        - Group
+      summary: Obter link de convite do grupo
+      description: Obtém o link de convite para um grupo, opcionalmente redefinindo-o para criar um novo/diferente
+      parameters:
+        - in: query
+          name: groupJID
+          schema:
+            type: string
+          required: true
+          description: The JID of the group to retrieve information from
+        - in: query
+          name: reset
+          schema:
+            type: boolean
+          required: false
+          description: Whether to revoke the old invite link and generate a new one (default is false)
+      responses:
+        200:
+          description: Successfull response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "InviteLink": "https://chat.whatsapp.com/HffXhYmzzyJGec61oqMXiz",
+                      },
+                    "success": true,
+                  }
+  /group/info:
+    get:
+      tags:
+        - Group
+      summary: Obter informações do grupo
+      description: Recupera informações sobre um grupo específico
+      parameters:
+        - in: query
+          name: groupJID
+          schema:
+            type: string
+          required: true
+          description: The JID of the group to retrieve information from
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "AnnounceVersionID": "1650572126123738",
+                        "DisappearingTimer": 0,
+                        "GroupCreated": "2022-04-21T17:15:26-03:00",
+                        "IsAnnounce": false,
+                        "IsEphemeral": false,
+                        "IsLocked": false,
+                        "JID": "120362023605733675@g.us",
+                        "Name": "Super Group",
+                        "NameSetAt": "2022-04-21T17:15:26-03:00",
+                        "NameSetBy": "5491155554444@s.whatsapp.net",
+                        "OwnerJID": "5491155554444@s.whatsapp.net",
+                        "ParticipantVersionID": "1650234126145738",
+                        "Participants":
+                          [
+                            {
+                              "IsAdmin": true,
+                              "IsSuperAdmin": true,
+                              "JID": "5491155554444@s.whatsapp.net",
+                            },
+                            {
+                              "IsAdmin": false,
+                              "IsSuperAdmin": false,
+                              "JID": "5491155553333@s.whatsapp.net",
+                            },
+                            {
+                              "IsAdmin": false,
+                              "IsSuperAdmin": false,
+                              "JID": "5491155552222@s.whatsapp.net",
+                            },
+                          ],
+                        "Topic": "",
+                        "TopicID": "",
+                        "TopicSetAt": "0001-01-01T00:00:00Z",
+                        "TopicSetBy": "",
+                      },
+                    "success": true,
+                  }
+
+  /group/name:
+    post:
+      tags:
+        - Group
+      summary: Alterar nome do grupo
+      description: Permite alterar o nome de um grupo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/GroupName"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data": { "Details": "Group Name set successfully" },
+                    "success": true,
+                  }
+  /group/photo:
+    post:
+      tags:
+        - Group
+      summary: Alterar foto do grupo
+      description: Permite alterar a foto/imagem de um grupo. Retorna o número ID da foto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#definitions/GroupPhoto"
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data":
+                      {
+                        "Details": "Group Photo set successfully",
+                        "PictureID": "1222332123",
+                      },
+                    "success": true,
+                  }
+
+definitions:
+  User:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      name:
+        type: string
+        example: John Doe
+
+  CreateUser:
+    type: object
+    required:
+      - name
+      - token
+    properties:
+      name:
+        type: string
+        example: John Doe
+      token:
+        type: string
+        example: "1234ABCD"
+
+  DeleteUser:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+  GroupPhoto:
+    type: object
+    properties:
+      GroupJID:
+        type: string
+        example: "120362023605733675@g.us"
+      Image:
+        type: string
+        example: "data:image/jpeg;base64,Akd9300..."
+  GroupName:
+    type: object
+    properties:
+      GroupJID:
+        type: string
+        example: "120362023605733675@g.us"
+      Name:
+        type: string
+        example: "My group name"
+  GroupInfo:
+    type: object
+    properties:
+      GroupJID:
+        type: string
+        example: "120362023605733675@g.us"
+  GroupInviteLink:
+    type: object
+    properties:
+      GroupJID:
+        type: string
+        example: "120362023605733675@g.us"
+      Reset:
+        type: boolean
+        example: false
+  Connect:
+    type: object
+    properties:
+      Subscribe:
+        type: string
+        example: ["Message", "ChatPresence"]
+      Immediate:
+        type: boolean
+  DownloadImage:
+    type: object
+    required:
+      - Url
+      - MediaKey
+      - Mimetype
+      - FileSHA256
+      - FileLength
+    properties:
+      Url:
+        type: string
+      DirectPath:
+        type: string
+      MediaKey:
+        type: string
+      Mimetype:
+        type: string
+      FileEncSHA256:
+        type: string
+      FileSHA256:
+        type: string
+      FileLength:
+        type: number
+  ChatPresence:
+    type: object
+    required:
+      - Phone
+      - State
+    properties:
+      Phone:
+        type: string
+        example: "5491155553935"
+      State:
+        type: string
+        example: composing
+      Media:
+        type: string
+        example: audio
+  MessageContact:
+    type: object
+    required:
+      - Phone
+      - Name
+      - Vcard
+    properties:
+      Phone:
+        type: string
+        example: "5491155553935"
+      Name:
+        type: string
+        example: John
+      Id:
+        type: string
+        example: "ABCDABCD1234"
+      Vcard:
+        type: string
+        example: "BEGIN:VCARD\nVERSION:3.0\nN:Doe;John;;;\nFN:John Doe\nORG:Example.com Inc.;\nTITLE:Imaginary test person\nEMAIL;type=INTERNET;type=WORK;type=pref:johnDoe@example.org\nTEL;type=WORK;type=pref:+1 617 555 1212\nTEL;type=WORK:+1 (617) 555-1234\nTEL;type=CELL:+1 781 555 1212\nTEL;type=HOME:+1 202 555 1212\nitem1.ADR;type=WORK:;;2 Enterprise Avenue;Worktown;NY;01111;USA\nitem1.X-ABADR:us\nitem2.ADR;type=HOME;type=pref:;;3 Acacia Avenue;Hoitem2.X-ABADR:us\nEND:VCARD"
+      ContextInfo:
+        type: object
+        required:
+          - StanzaId
+          - Participant
+        properties:
+          StanzaId:
+            type: string
+            example: "3EB06F9067F80BAB89FF"
+          Participant:
+            type: string
+            example: "5491155553935@s.whatsapp.net"
+
+  MessageLocation:
+    type: object
+    required:
+      - Phone
+      - Latitude
+      - Longitude
+    properties:
+      Phone:
+        type: string
+        example: "5491155553935"
+      Name:
+        type: string
+        example: Party
+      Id:
+        type: string
+        example: "ABCDABCD1234"
+      Latitude:
+        type: float
+        example: 48.858370
+      Longitude:
+        type: float
+        example: 2.294481
+      ContextInfo:
+        type: object
+        required:
+          - StanzaId
+          - Participant
+        properties:
+          StanzaId:
+            type: string
+            example: "3EB06F9067F80BAB89FF"
+          Participant:
+            type: string
+            example: "5491155553935@s.whatsapp.net"
+  ReactionText:
+    type: object
+    required:
+      - Phone
+      - Body
+      - Id
+    properties:
+      Phone:
+        type: string
+        example: "5491155553935"
+      Body:
+        type: string
+        example: "❤️"
+      Id:
+        type: string
+        example: "me:3EB06F9067F80BAB89FF"
+
+  MessageText:
+    type: object
+    required:
+      - Phone
+      - Body
+    properties:
+      Phone:
+        type: string
+        example: "5491155553935"
+      Body:
+        type: string
+        example: How you doin
+      Id:
+        type: string
+        example: "ABCDABCD1234"
+      ContextInfo:
+        type: object
+        required:
+          - StanzaId
+          - Participant
+        properties:
+          StanzaId:
+            type: string
+            example: "3EB06F9067F80BAB89FF"
+          Participant:
+            type: string
+            example: "5491155553935@s.whatsapp.net"
+  MessageImage:
+    type: object
+    required:
+      - Phone
+      - Image
+    properties:
+      Phone:
+        type: string
+        example: "5491155553935"
+      Image:
+        type: string
+        example: data:image/jpeg;base64,iVBORw0
+      Caption:
+        type: string
+        example: Image Description
+      Id:
+        type: string
+        example: "ABCDABCD1234"
+      ContextInfo:
+        type: object
+        required:
+          - StanzaId
+          - Participant
+        properties:
+          StanzaId:
+            type: string
+            example: "3EB06F9067F80BAB89FF"
+          Participant:
+            type: string
+            example: "5491155553935@s.whatsapp.net"
+  MessageAudio:
+    type: object
+    required:
+      - Phone
+      - Audio
+    properties:
+      Phone:
+        type: string
+        example: "5491155553935"
+      Audio:
+        type: string
+        example: "data:audio/ogg;base64,iVBORw0a"
+      Id:
+        type: string
+        example: "ABCDABCD1234"
+      ContextInfo:
+        type: object
+        required:
+          - StanzaId
+          - Participant
+        properties:
+          StanzaId:
+            type: string
+            example: "3EB06F9067F80BAB89FF"
+          Participant:
+            type: string
+            example: "5491155553935@s.whatsapp.net"
+  MessageVideo:
+    type: object
+    required:
+      - Phone
+      - Video
+    properties:
+      Phone:
+        type: string
+        example: "5491155553935"
+      Video:
+        type: string
+        example: "data:video/mp4;base64,iVBORw0"
+      Caption:
+        type: string
+        example: "my video"
+      Id:
+        type: string
+        example: "ABCDABCD1234"
+      JpegThumbnail:
+        type: string
+        example: "AA00D010"
+      ContextInfo:
+        type: object
+        required:
+          - StanzaId
+          - Participant
+        properties:
+          StanzaId:
+            type: string
+            example: "3EB06F9067F80BAB89FF"
+          Participant:
+            type: string
+            example: "5491155553935@s.whatsapp.net"
+  MessageSticker:
+    type: object
+    required:
+      - Phone
+      - Sticker
+    properties:
+      Phone:
+        type: string
+        example: "5491155553935"
+      Sticker:
+        type: string
+        example: "data:image/webp;base64,iVBORw0"
+      Id:
+        type: string
+        example: "ABCDABCD1234"
+      PngThumbnail:
+        type: string
+        example: "AA00D010"
+      ContextInfo:
+        type: object
+        required:
+          - StanzaId
+          - Participant
+        properties:
+          StanzaId:
+            type: string
+            example: "3EB06F9067F80BAB89FF"
+          Participant:
+            type: string
+            example: "5491155553935@s.whatsapp.net"
+
+  MessageDocument:
+    type: object
+    required:
+      - Phone
+      - Document
+      - FileName
+    properties:
+      Phone:
+        type: string
+        example: "5491155553935"
+      Document:
+        type: string
+        example: data:application/octet-stream;base64,aG9sYSBxdWUKdGFsCmNvbW8KZXN0YXMK
+      FileName:
+        type: string
+        example: file.txt
+      Id:
+        type: string
+        example: "ABCDABCD1234"
+      ContextInfo:
+        type: object
+        required:
+          - StanzaId
+          - Participant
+        properties:
+          StanzaId:
+            type: string
+            example: "3EB06F9067F80BAB89FF"
+          Participant:
+            type: string
+            example: "5491155553935@s.whatsapp.net"
+  MessageTemplate:
+    type: object
+    required:
+      - Phone
+      - Content
+    properties:
+      Phone:
+        type: string
+        example: "5491155553935"
+      Content:
+        type: string
+        example: Message title
+      Footer:
+        type: string
+        example: Text below title, above buttons
+      Buttons:
+        type: object
+        example:
+          [
+            { "DisplayText": "Yes", "Type": "quickreply" },
+            { "DisplayText": "No", "Type": "quickreply" },
+            {
+              "DisplayText": "Visit Site",
+              "Type": "url",
+              "Url": "https://www.fop2.com",
+            },
+            {
+              "DisplayText": "Callme",
+              "Type": "call",
+              "PhoneNumber": "1155553934",
+            },
+          ]
+        properties:
+          DisplayText:
+            type: string
+            example: Text for Button
+          Type:
+            type: quickreply|url|call
+      Id:
+        type: string
+        example: "ABCDABCD1234"
+      ContextInfo:
+        type: object
+        required:
+          - StanzaId
+          - Participant
+        properties:
+          StanzaId:
+            type: string
+            example: "3EB06F9067F80BAB89FF"
+          Participant:
+            type: string
+            example: "5491155553935@s.whatsapp.net"
+  Markread:
+    type: object
+    required:
+      - Id
+      - Chat
+    properties:
+      Id:
+        type: object
+        example: ["AABBCC11223344", "DDEEFF55667788"]
+      Chat:
+        type: string
+        example: 5491155553934.0:1@s.whatsapp.net
+      Sender:
+        type: string
+        example: 5491155553111.0:1@s.whatsapp.net
+  Pairphone:
+    type: object
+    required:
+      - Phone
+    properties:
+      Phone:
+        type: string
+        example: "5491155553934"
+  Checkuser:
+    type: object
+    required:
+      - Phone
+    properties:
+      Phone:
+        type: object
+        example: ["5491155553934", "5491155553935"]
+  Checkavatar:
+    type: object
+    required:
+      - Phone
+      - Preview
+    properties:
+      Phone:
+        type: string
+        example: "5491155553934"
+      Preview:
+        type: bool
+        example: true
+  Webhook:
+    type: object
+    required:
+      - WebhookURL
+    properties:
+      WebhookURL:
+        type: string
+        example: http://server/webhook
+
+  WebhookSet:
+    type: object
+    required:
+      - webhook
+      - events
+    properties:
+      webhook:
+        type: string
+        description: The URL of the webhook
+        example: "https://example.net/webhook"
+      events:
+        type: array
+        items:
+          type: string
+        description: List of events to subscribe to
+        example: ["Message", "ReadReceipt"]
+
+  WebhookUpdate:
+    type: object
+    properties:
+      webhook:
+        type: string
+        description: The URL of the webhook
+        example: "https://example.net/webhook"
+      events:
+        type: array
+        items:
+          type: string
+        description: List of events to subscribe to
+        example: ["Message", "ReadReceipt"]
+      Active:
+        type: boolean
+        description: Whether the webhook should be active or not
+        example: true
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: token
+
+security:
+  - ApiKeyAuth: []

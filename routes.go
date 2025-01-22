@@ -32,7 +32,7 @@ func (s *server) routes() {
     adminRoutes.Use(s.authadmin)
     adminRoutes.Handle("/users", s.ListUsers()).Methods("GET")
     adminRoutes.Handle("/users", s.AddUser()).Methods("POST")
-    adminRoutes.Handle("/users/{id}", s.DeleteUser()).Methods("DELETE")
+    adminRoutes.Handle("/users/{token}", s.DeleteUser()).Methods("DELETE")
 
 	c := alice.New()
 	c = c.Append(s.authalice)
@@ -83,6 +83,7 @@ func (s *server) routes() {
 	s.router.Handle("/user/check", c.Then(s.CheckUser())).Methods("POST")
 	s.router.Handle("/user/avatar", c.Then(s.GetAvatar())).Methods("POST")
 	s.router.Handle("/user/contacts", c.Then(s.GetContacts())).Methods("GET")
+	s.router.Handle("/user/onwhatsapp", c.Then(s.IsOnWhatsApp())).Methods("POST")
 
 	s.router.Handle("/chat/presence", c.Then(s.ChatPresence())).Methods("POST")
 	s.router.Handle("/chat/markread", c.Then(s.MarkRead())).Methods("POST")

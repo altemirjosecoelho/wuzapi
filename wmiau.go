@@ -212,6 +212,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 					if(*logType!="json") {
 						qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
 						fmt.Println("QR code:\n", evt.Code)
+						
 					}
 					// Store encoded/embeded base64 QR on database for retrieval with the /qr endpoint
 					image, _ := qrcode.Encode(evt.Code, qrcode.Medium, 256)
@@ -221,6 +222,25 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 					if err != nil {
 						log.Error().Err(err).Msg(sqlStmt)
 					}
+
+					// Adiciona envio do QR code por webhook
+					postmap := make(map[string]interface{})
+					postmap["type"] = "Connection.QRCode"
+					postmap["event"] = map[string]interface{}{"code": evt.Code}
+
+					jsonData, _ := json.Marshal(postmap)
+					data := map[string]string{
+						"jsonData": string(jsonData),
+						"token":    token,
+					}
+
+					myuserinfo, found := userinfocache.Get(token)
+					if found {
+						webhookurl := myuserinfo.(Values).Get("Webhook")
+						if webhookurl != "" {
+							go callHook(webhookurl, data, userID)
+						}
+					}
 				} else if evt.Event == "timeout" {
 					// Clear QR code from DB on timeout
 					sqlStmt := `UPDATE users SET qrcode=$1 WHERE id=$2`
@@ -229,6 +249,26 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 						log.Error().Err(err).Msg(sqlStmt)
 					}
 					log.Warn().Msg("QR timeout killing channel")
+
+					// Adiciona dados para webhook
+					postmap := make(map[string]interface{})
+					postmap["type"] = "Connection.QRTimeout"
+					postmap["event"] = map[string]interface{}{"code": evt.Code}
+					jsonData, _ := json.Marshal(postmap)
+					data := map[string]string{
+						"jsonData": string(jsonData),
+						"token":    token,
+					}
+
+					// Obtém webhook do usuário
+					myuserinfo, found := userinfocache.Get(token)
+					if found {
+						webhookurl := myuserinfo.(Values).Get("Webhook")
+						if webhookurl != "" {
+							go callHook(webhookurl, data, userID)
+						}
+					}
+
 					delete(clientPointer, userID)
 					killchannel[userID] <- true
 				} else if evt.Event == "success" {
@@ -259,9 +299,31 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 		select {
 		case <-killchannel[userID]:
 			log.Info().Str("userid",strconv.Itoa(userID)).Msg("Received kill signal")
+			
+			// Prepara e envia o webhook
+			postmap := make(map[string]interface{})
+			postmap["type"] = "Connection.LoggedOut"
+			postmap["event"] = map[string]interface{}{"reason": "Kill signal received"}
+			
+			// Busca informações do usuário para o webhook
+			myuserinfo, found := userinfocache.Get(token)
+			if found {
+				webhookurl := myuserinfo.(Values).Get("Webhook")
+				if webhookurl != "" {
+					jsonData, err := json.Marshal(postmap)
+					if err == nil {
+						data := map[string]string{
+							"jsonData": string(jsonData),
+							"token":    token,
+						}
+						go callHook(webhookurl, data, userID)
+					}
+				}
+			}
+			
 			client.Disconnect()
 			delete(clientPointer, userID)
-			sqlStmt := `UPDATE users SET, qrcode=$1 connected=0 WHERE id=$1`
+			sqlStmt := `UPDATE users SET qrcode=$1, connected=0 WHERE id=$2`
 			_, err := s.db.Exec(sqlStmt, "", userID)
 			if err != nil {
 				log.Error().Err(err).Msg(sqlStmt)
@@ -355,6 +417,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			return
 		}
 	case *events.PairSuccess:
+		postmap["type"] = "Connection.PairSuccess"
+		dowebhook = 1
 		logEventToFile(fmt.Sprintf("PairSuccess event: {type: %T, event: %+v}", evt, evt))
 		log.Info().Str("userid",strconv.Itoa(mycli.userID)).Str("token",mycli.token).Str("ID",evt.ID.String()).Str("BusinessName",evt.BusinessName).Str("Platform",evt.Platform).Msg("QR Pair Success")
 		jid := evt.ID
@@ -638,7 +702,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		log.Info().Str("index",fmt.Sprintf("%+v",evt.Index)).Str("actionValue",fmt.Sprintf("%+v",evt.SyncActionValue)).Msg("App state event received")
 	case *events.LoggedOut:
 		logEventToFile(fmt.Sprintf("LoggedOut event: {type: %T, event: %+v}", evt, evt))
-		postmap["type"] = "Connection"
+		postmap["type"] = "Connection.LoggedOut"
+		postmap["event"] = map[string]interface{}{"reason": evt.Reason.String()}
 		dowebhook = 1
 		log.Info().Str("reason",evt.Reason.String()).Msg("Logged out")
 		killchannel[mycli.userID] <- true
@@ -669,6 +734,10 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 	case *events.CallRelayLatency:
 		logEventToFile(fmt.Sprintf("CallRelayLatency event: {type: %T, event: %+v}", evt, evt))
 		log.Info().Str("event",fmt.Sprintf("%+v",evt)).Msg("Got call relay latency")
+
+	case *events.QR:
+		logEventToFile(fmt.Sprintf("QR event: {type: %T, event: %+v}", evt, evt))
+		log.Info().Str("event",fmt.Sprintf("%+v",evt)).Msg("Got QR")
 	default:
 		logEventToFile(fmt.Sprintf("Unhandled event: {type: %T, event: %+v}", evt, evt))
 		log.Warn().Str("event",fmt.Sprintf("%+v",evt)).Msg("Unhandled event")
