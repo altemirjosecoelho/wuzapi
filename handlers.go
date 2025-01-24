@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,11 +12,14 @@ import (
 	"image/jpeg"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/gorilla/mux"
 	"github.com/nfnt/resize"
 	"github.com/patrickmn/go-cache"
@@ -1803,165 +1807,6 @@ func (s *server) SendMessage() http.HandlerFunc {
 	}
 }
 
-/*
-// Sends a Template message
-func (s *server) SendTemplate() http.HandlerFunc {
-
-	type buttonStruct struct {
-		DisplayText string
-		Id          string
-		Url         string
-		PhoneNumber string
-		Type        string
-	}
-
-	type templateStruct struct {
-		Phone   string
-		Content string
-		Footer  string
-		Id      string
-		Buttons []buttonStruct
-	}
-
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		txtid := r.Context().Value("userinfo").(Values).Get("Id")
-		userid, _ := strconv.Atoi(txtid)
-
-		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
-			return
-		}
-
-		msgid := ""
-		var resp whatsmeow.SendResponse
-//var ts time.Time
-
-		decoder := json.NewDecoder(r.Body)
-		var t templateStruct
-		err := decoder.Decode(&t)
-		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
-			return
-		}
-
-		if t.Phone == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
-			return
-		}
-
-		if t.Content == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Content in Payload"))
-			return
-		}
-
-		if t.Footer == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Footer in Payload"))
-			return
-		}
-
-		if len(t.Buttons) < 1 {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Buttons in Payload"))
-			return
-		}
-
-		recipient, ok := parseJID(t.Phone)
-		if !ok {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not parse Phone"))
-			return
-		}
-
-		if t.Id == "" {
-			msgid = whatsmeow.GenerateMessageID()
-		} else {
-			msgid = t.Id
-		}
-
-		var buttons []*waProto.HydratedTemplateButton
-
-		id := 1
-		for _, item := range t.Buttons {
-			switch item.Type {
-			case "quickreply":
-				var idtext string
-				text := item.DisplayText
-				if item.Id == "" {
-					idtext = strconv.Itoa(id)
-				} else {
-					idtext = item.Id
-				}
-				buttons = append(buttons, &waProto.HydratedTemplateButton{
-					HydratedButton: &waProto.HydratedTemplateButton_QuickReplyButton{
-						QuickReplyButton: &waProto.HydratedQuickReplyButton{
-							DisplayText: &text,
-							Id:          proto.String(idtext),
-						},
-					},
-				})
-			case "url":
-				text := item.DisplayText
-				url := item.Url
-				buttons = append(buttons, &waProto.HydratedTemplateButton{
-					HydratedButton: &waProto.HydratedTemplateButton_UrlButton{
-						UrlButton: &waProto.HydratedURLButton{
-							DisplayText: &text,
-							Url:         &url,
-						},
-					},
-				})
-			case "call":
-				text := item.DisplayText
-				phonenumber := item.PhoneNumber
-				buttons = append(buttons, &waProto.HydratedTemplateButton{
-					HydratedButton: &waProto.HydratedTemplateButton_CallButton{
-						CallButton: &waProto.HydratedCallButton{
-							DisplayText: &text,
-							PhoneNumber: &phonenumber,
-						},
-					},
-				})
-			default:
-				text := item.DisplayText
-				buttons = append(buttons, &waProto.HydratedTemplateButton{
-					HydratedButton: &waProto.HydratedTemplateButton_QuickReplyButton{
-						QuickReplyButton: &waProto.HydratedQuickReplyButton{
-							DisplayText: &text,
-							Id:          proto.String(string(id)),
-						},
-					},
-				})
-			}
-			id++
-		}
-
-		msg := &waProto.Message{TemplateMessage: &waProto.TemplateMessage{
-			HydratedTemplate: &waProto.HydratedFourRowTemplate{
-				HydratedContentText: proto.String(t.Content),
-				HydratedFooterText:  proto.String(t.Footer),
-				HydratedButtons:     buttons,
-				TemplateId:          proto.String("1"),
-			},
-		},
-		}
-
-		resp, err = clientPointer[userid].SendMessage(context.Background(),recipient, msg, whatsmeow.SendRequestExtra{ID: msgid})
-		if err != nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Error sending message: %v", err)))
-			return
-		}
-
-		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
-		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp, "Id": msgid}
-		responseJson, err := json.Marshal(response)
-		if err != nil {
-			s.Respond(w, r, http.StatusInternalServerError, err)
-		} else {
-			s.Respond(w, r, http.StatusOK, string(responseJson))
-		}
-		return
-	}
-}
-*/
 // checks if users/phones are on Whatsapp
 func (s *server) CheckUser() http.HandlerFunc {
 
@@ -2350,325 +2195,7 @@ func (s *server) ChatPresence() http.HandlerFunc {
 	}
 }
 
-// Downloads Image and returns base64 representation
-func (s *server) DownloadImage() http.HandlerFunc {
 
-	type downloadImageStruct struct {
-		Url           string
-		DirectPath    string
-		MediaKey      []byte
-		Mimetype      string
-		FileEncSHA256 []byte
-		FileSHA256    []byte
-		FileLength    uint64
-	}
-
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		txtid := r.Context().Value("userinfo").(Values).Get("Id")
-		userid, _ := strconv.Atoi(txtid)
-
-		mimetype := ""
-		var imgdata []byte
-
-		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
-			return
-		}
-
-		// check/creates user directory for files
-		userDirectory := filepath.Join(s.exPath, "files", "user_"+txtid)
-		_, err := os.Stat(userDirectory)
-		if os.IsNotExist(err) {
-			errDir := os.MkdirAll(userDirectory, 0751)
-			if errDir != nil {
-				s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Could not create user directory (%s)", userDirectory)))
-				return
-			}
-		}
-
-		decoder := json.NewDecoder(r.Body)
-		var t downloadImageStruct
-		err = decoder.Decode(&t)
-		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
-			return
-		}
-
-		msg := &waProto.Message{ImageMessage: &waProto.ImageMessage{
-			URL:           proto.String(t.Url),
-			DirectPath:    proto.String(t.DirectPath),
-			MediaKey:      t.MediaKey,
-			Mimetype:      proto.String(t.Mimetype),
-			FileEncSHA256: t.FileEncSHA256,
-			FileSHA256:    t.FileSHA256,
-			FileLength:    &t.FileLength,
-		}}
-
-		img := msg.GetImageMessage()
-
-		if img != nil {
-			imgdata, err = clientPointer[userid].Download(img)
-			if err != nil {
-				log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("Failed to download image")
-				msg := fmt.Sprintf("Failed to download image %v", err)
-				s.Respond(w, r, http.StatusInternalServerError, errors.New(msg))
-				return
-			}
-			mimetype = img.GetMimetype()
-		}
-
-		dataURL := dataurl.New(imgdata, mimetype)
-		response := map[string]interface{}{"Mimetype": mimetype, "Data": dataURL.String()}
-		responseJson, err := json.Marshal(response)
-		if err != nil {
-			s.Respond(w, r, http.StatusInternalServerError, err)
-		} else {
-			s.Respond(w, r, http.StatusOK, string(responseJson))
-		}
-		return
-	}
-}
-
-// Downloads Document and returns base64 representation
-func (s *server) DownloadDocument() http.HandlerFunc {
-
-	type downloadDocumentStruct struct {
-		Url           string
-		DirectPath    string
-		MediaKey      []byte
-		Mimetype      string
-		FileEncSHA256 []byte
-		FileSHA256    []byte
-		FileLength    uint64
-	}
-
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		txtid := r.Context().Value("userinfo").(Values).Get("Id")
-		userid, _ := strconv.Atoi(txtid)
-
-		mimetype := ""
-		var docdata []byte
-
-		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
-			return
-		}
-
-		// check/creates user directory for files
-		userDirectory := filepath.Join(s.exPath, "files", "user_"+txtid)
-		_, err := os.Stat(userDirectory)
-		if os.IsNotExist(err) {
-			errDir := os.MkdirAll(userDirectory, 0751)
-			if errDir != nil {
-				s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Could not create user directory (%s)", userDirectory)))
-				return
-			}
-		}
-
-		decoder := json.NewDecoder(r.Body)
-		var t downloadDocumentStruct
-		err = decoder.Decode(&t)
-		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
-			return
-		}
-
-		msg := &waProto.Message{DocumentMessage: &waProto.DocumentMessage{
-			URL:           proto.String(t.Url),
-			DirectPath:    proto.String(t.DirectPath),
-			MediaKey:      t.MediaKey,
-			Mimetype:      proto.String(t.Mimetype),
-			FileEncSHA256: t.FileEncSHA256,
-			FileSHA256:    t.FileSHA256,
-			FileLength:    &t.FileLength,
-		}}
-
-		doc := msg.GetDocumentMessage()
-
-		if doc != nil {
-			docdata, err = clientPointer[userid].Download(doc)
-			if err != nil {
-				log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("Failed to download document")
-				msg := fmt.Sprintf("Failed to download document %v", err)
-				s.Respond(w, r, http.StatusInternalServerError, errors.New(msg))
-				return
-			}
-			mimetype = doc.GetMimetype()
-		}
-
-		dataURL := dataurl.New(docdata, mimetype)
-		response := map[string]interface{}{"Mimetype": mimetype, "Data": dataURL.String()}
-		responseJson, err := json.Marshal(response)
-		if err != nil {
-			s.Respond(w, r, http.StatusInternalServerError, err)
-		} else {
-			s.Respond(w, r, http.StatusOK, string(responseJson))
-		}
-		return
-	}
-}
-
-// Downloads Video and returns base64 representation
-func (s *server) DownloadVideo() http.HandlerFunc {
-
-	type downloadVideoStruct struct {
-		Url           string
-		DirectPath    string
-		MediaKey      []byte
-		Mimetype      string
-		FileEncSHA256 []byte
-		FileSHA256    []byte
-		FileLength    uint64
-	}
-
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		txtid := r.Context().Value("userinfo").(Values).Get("Id")
-		userid, _ := strconv.Atoi(txtid)
-
-		mimetype := ""
-		var docdata []byte
-
-		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
-			return
-		}
-
-		// check/creates user directory for files
-		userDirectory := filepath.Join(s.exPath, "files", "user_"+txtid)
-		_, err := os.Stat(userDirectory)
-		if os.IsNotExist(err) {
-			errDir := os.MkdirAll(userDirectory, 0751)
-			if errDir != nil {
-				s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Could not create user directory (%s)", userDirectory)))
-				return
-			}
-		}
-
-		decoder := json.NewDecoder(r.Body)
-		var t downloadVideoStruct
-		err = decoder.Decode(&t)
-		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
-			return
-		}
-
-		msg := &waProto.Message{VideoMessage: &waProto.VideoMessage{
-			URL:           proto.String(t.Url),
-			DirectPath:    proto.String(t.DirectPath),
-			MediaKey:      t.MediaKey,
-			Mimetype:      proto.String(t.Mimetype),
-			FileEncSHA256: t.FileEncSHA256,
-			FileSHA256:    t.FileSHA256,
-			FileLength:    &t.FileLength,
-		}}
-
-		doc := msg.GetVideoMessage()
-
-		if doc != nil {
-			docdata, err = clientPointer[userid].Download(doc)
-			if err != nil {
-				log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("Failed to download video")
-				msg := fmt.Sprintf("Failed to download video %v", err)
-				s.Respond(w, r, http.StatusInternalServerError, errors.New(msg))
-				return
-			}
-			mimetype = doc.GetMimetype()
-		}
-
-		dataURL := dataurl.New(docdata, mimetype)
-		response := map[string]interface{}{"Mimetype": mimetype, "Data": dataURL.String()}
-		responseJson, err := json.Marshal(response)
-		if err != nil {
-			s.Respond(w, r, http.StatusInternalServerError, err)
-		} else {
-			s.Respond(w, r, http.StatusOK, string(responseJson))
-		}
-		return
-	}
-}
-
-// Downloads Audio and returns base64 representation
-func (s *server) DownloadAudio() http.HandlerFunc {
-
-	type downloadAudioStruct struct {
-		Url           string
-		DirectPath    string
-		MediaKey      []byte
-		Mimetype      string
-		FileEncSHA256 []byte
-		FileSHA256    []byte
-		FileLength    uint64
-	}
-
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		txtid := r.Context().Value("userinfo").(Values).Get("Id")
-		userid, _ := strconv.Atoi(txtid)
-
-		mimetype := ""
-		var docdata []byte
-
-		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
-			return
-		}
-
-		// check/creates user directory for files
-		userDirectory := filepath.Join(s.exPath, "files", "user_"+txtid)
-		_, err := os.Stat(userDirectory)
-		if os.IsNotExist(err) {
-			errDir := os.MkdirAll(userDirectory, 0751)
-			if errDir != nil {
-				s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Could not create user directory (%s)", userDirectory)))
-				return
-			}
-		}
-
-		decoder := json.NewDecoder(r.Body)
-		var t downloadAudioStruct
-		err = decoder.Decode(&t)
-		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
-			return
-		}
-
-		msg := &waProto.Message{AudioMessage: &waProto.AudioMessage{
-			URL:           proto.String(t.Url),
-			DirectPath:    proto.String(t.DirectPath),
-			MediaKey:      t.MediaKey,
-			Mimetype:      proto.String(t.Mimetype),
-			FileEncSHA256: t.FileEncSHA256,
-			FileSHA256:    t.FileSHA256,
-			FileLength:    &t.FileLength,
-		}}
-
-		doc := msg.GetAudioMessage()
-
-		if doc != nil {
-			docdata, err = clientPointer[userid].Download(doc)
-			if err != nil {
-				log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("Failed to download audio")
-				msg := fmt.Sprintf("Failed to download audio %v", err)
-				s.Respond(w, r, http.StatusInternalServerError, errors.New(msg))
-				return
-			}
-			mimetype = doc.GetMimetype()
-		}
-
-		dataURL := dataurl.New(docdata, mimetype)
-		response := map[string]interface{}{"Mimetype": mimetype, "Data": dataURL.String()}
-		responseJson, err := json.Marshal(response)
-		if err != nil {
-			s.Respond(w, r, http.StatusInternalServerError, err)
-		} else {
-			s.Respond(w, r, http.StatusOK, string(responseJson))
-		}
-		return
-	}
-}
 
 // React
 func (s *server) React() http.HandlerFunc {
@@ -3321,4 +2848,264 @@ func contains(slice []string, item string) bool {
         }
     }
     return false
+}
+
+func (s *server) DownloadMedia() http.HandlerFunc {
+    type downloadMediaStruct struct {
+        MessageType     string `json:"messageType,omitempty"` // Opcional agora
+        URL          string `json:"URL"`
+        DirectPath   string `json:"directPath"`
+        MediaKey     string `json:"mediaKey"`
+        Mimetype     string `json:"mimetype"`
+        FileEncSHA256 string `json:"fileEncSHA256"`
+        FileSHA256    string `json:"fileSHA256"`
+        FileLength    uint64 `json:"fileLength"`
+        FileName      string `json:"fileName,omitempty"`
+    }
+
+    return func(w http.ResponseWriter, r *http.Request) {
+        // Obtém ID do usuário do contexto
+        txtid := r.Context().Value("userinfo").(Values).Get("Id")
+        userid, _ := strconv.Atoi(txtid)
+
+        // Verifica se existe uma sessão ativa
+        if clientPointer[userid] == nil {
+            s.Respond(w, r, http.StatusInternalServerError, errors.New("sessão não inicializada"))
+            return
+        }
+
+        // Decodifica o payload da requisição
+        var t downloadMediaStruct
+        if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
+            s.Respond(w, r, http.StatusBadRequest, errors.New("não foi possível decodificar o payload"))
+            return
+        }
+        defer r.Body.Close()
+
+        // Decodifica as strings base64 para []byte
+        mediaKey, err := base64.StdEncoding.DecodeString(t.MediaKey)
+        if err != nil {
+            s.Respond(w, r, http.StatusBadRequest, errors.New("mediaKey inválido"))
+            return
+        }
+
+        fileEncSHA256, err := base64.StdEncoding.DecodeString(t.FileEncSHA256)
+        if err != nil {
+            s.Respond(w, r, http.StatusBadRequest, errors.New("fileEncSHA256 inválido"))
+            return
+        }
+
+        fileSHA256, err := base64.StdEncoding.DecodeString(t.FileSHA256)
+        if err != nil {
+            s.Respond(w, r, http.StatusBadRequest, errors.New("fileSHA256 inválido"))
+            return
+        }
+
+        // Valida campos obrigatórios
+        if t.URL == "" || t.MediaKey == "" || t.Mimetype == "" {
+            s.Respond(w, r, http.StatusBadRequest, errors.New("url, mediaKey e mimetype são obrigatórios"))
+            return
+        }
+
+        // Determina o mediaType baseado no mimetype se não fornecido
+
+
+        // Prepara a mensagem baseada no tipo de mídia
+        var msg *waProto.Message
+
+		fmt.Println("t.MessageType >>>>", t.MessageType)
+        switch t.MessageType {	
+        case "imageMessage":
+            msg = &waProto.Message{ImageMessage: &waProto.ImageMessage{
+                URL:           proto.String(t.URL),
+                DirectPath:    proto.String(t.DirectPath),
+                MediaKey:      mediaKey,
+                Mimetype:      proto.String(t.Mimetype),
+                FileEncSHA256: fileEncSHA256,
+                FileSHA256:    fileSHA256,
+                FileLength:    &t.FileLength,
+            }}
+        case "documentMessage":
+            msg = &waProto.Message{DocumentMessage: &waProto.DocumentMessage{
+                URL:           proto.String(t.URL),
+                DirectPath:    proto.String(t.DirectPath),
+                MediaKey:      mediaKey,
+                Mimetype:      proto.String(t.Mimetype),
+                FileEncSHA256: fileEncSHA256,
+                FileSHA256:    fileSHA256,
+                FileLength:    &t.FileLength,
+            }}
+        case "videoMessage":
+            msg = &waProto.Message{VideoMessage: &waProto.VideoMessage{
+                URL:           proto.String(t.URL),
+                DirectPath:    proto.String(t.DirectPath),
+                MediaKey:      mediaKey,
+                Mimetype:      proto.String(t.Mimetype),
+                FileEncSHA256: fileEncSHA256,
+                FileSHA256:    fileSHA256,
+                FileLength:    &t.FileLength,
+            }}
+        case "audioMessage":
+            msg = &waProto.Message{AudioMessage: &waProto.AudioMessage{
+                URL:           proto.String(t.URL),
+                DirectPath:    proto.String(t.DirectPath),
+                MediaKey:      mediaKey,
+                Mimetype:      proto.String(t.Mimetype),
+                FileEncSHA256: fileEncSHA256,
+                FileSHA256:    fileSHA256,
+                FileLength:    &t.FileLength,
+            }}
+        default:
+            s.Respond(w, r, http.StatusBadRequest, errors.New("tipo de mídia inválido"))
+            return
+        }
+
+        // Tenta fazer o download com retry
+        var mediaData []byte
+        var mimetype string
+
+
+        for retries := 0; retries < 3; retries++ {
+            var downloadable whatsmeow.DownloadableMessage
+            
+            switch t.MessageType {
+            case "imageMessage":
+                downloadable = msg.GetImageMessage()
+            case "documentMessage":
+                downloadable = msg.GetDocumentMessage()
+            case "videoMessage":
+                downloadable = msg.GetVideoMessage()
+            case "audioMessage":
+                downloadable = msg.GetAudioMessage()
+            }
+
+            if downloadable != nil {
+                mediaData, err = clientPointer[userid].Download(downloadable)
+                if err == nil {
+                    mimetype = downloadable.(interface{ GetMimetype() string }).GetMimetype()
+                    break
+                }
+                log.Warn().
+                    Err(err).
+                    Int("tentativa", retries+1).
+                    Str("url", t.URL).
+                    Msg("Falha ao baixar mídia, tentando novamente")
+                
+                time.Sleep(time.Second * time.Duration(retries+1))
+            }
+        }
+
+        if err != nil {
+            log.Error().
+                Err(err).
+                Str("url", t.URL).
+                Msg("Falha definitiva ao baixar mídia")
+            s.Respond(w, r, http.StatusInternalServerError, fmt.Errorf("falha ao baixar mídia: %v", err))
+            return
+        }
+
+        // Verifica se os dados foram baixados
+        if len(mediaData) == 0 {
+            s.Respond(w, r, http.StatusInternalServerError, errors.New("nenhum dado recebido da mídia"))
+            return
+        }
+
+        // Após obter mediaData com sucesso, verifica se R2 está habilitado
+        if s.r2Config.Enabled {
+            // Configura o cliente S3
+            s3Config := &aws.Config{
+                Credentials: credentials.NewStaticCredentials(
+                    s.r2Config.AccessKey,
+                    s.r2Config.SecretKey,
+                    "",
+                ),
+                Endpoint:         aws.String(fmt.Sprintf("https://%s.r2.cloudflarestorage.com", s.r2Config.AccountID)),
+                Region:          aws.String("auto"),
+                S3ForcePathStyle: aws.Bool(true),
+            }
+
+            session := session.Must(session.NewSession(s3Config))
+            s3Client := s3.New(session)
+
+            // Usa o nome do arquivo fornecido ou gera baseado no timestamp se não fornecido
+            fileName := t.FileName
+
+            
+            // Adiciona log para imprimir o fileName
+            log.Info().
+                Str("fileName", fileName).
+                Msg("Nome do arquivo para upload no R2")
+
+            // Faz upload para R2
+            _, err := s3Client.PutObject(&s3.PutObjectInput{
+                Bucket:        aws.String(s.r2Config.BucketName),
+                Key:           aws.String(fileName),
+                Body:          bytes.NewReader(mediaData),
+                ContentType:   aws.String(mimetype),
+                CacheControl: aws.String("public, max-age=31536000"),
+            })
+
+            if err != nil {
+                log.Error().
+                    Err(err).
+                    Str("bucket", s.r2Config.BucketName).
+                    Str("fileName", fileName).
+                    Msg("Falha ao fazer upload para R2")
+                
+                // Se falhar o upload, retorna o arquivo normalmente
+                s.returnFileDirectly(w, mediaData, mimetype, t.MessageType, t.URL)
+                return
+            }
+
+            // Gera a URL do arquivo
+            var fileURL string
+            if s.r2Config.CustomDomain != "" {
+                fileURL = fmt.Sprintf("https://%s/%s", s.r2Config.CustomDomain, fileName)
+            } else {
+                fileURL = fmt.Sprintf("https://%s.r2.cloudflarestorage.com/%s/%s", 
+                    s.r2Config.AccountID,
+                    s.r2Config.BucketName,
+                    fileName,
+                )
+            }
+
+            // Prepara a resposta no formato desejado
+            response := map[string]interface{}{
+                "url": fileURL,
+                "mimetype": mimetype,
+                "size": len(mediaData),
+                "fileName": fileName,  // Adicionando o fileName na resposta
+            }
+            
+            // Configura o cabeçalho e status da resposta
+            w.Header().Set("Content-Type", "application/json; charset=utf-8")
+            w.WriteHeader(http.StatusOK)
+
+            // Usa json.Encoder para evitar escape de caracteres
+            encoder := json.NewEncoder(w)
+            encoder.SetEscapeHTML(false)
+            if err := encoder.Encode(response); err != nil {
+                s.Respond(w, r, http.StatusInternalServerError, err)
+                return
+            }
+            return
+        }
+
+        // Se R2 não estiver habilitado, retorna o arquivo normalmente
+        s.returnFileDirectly(w, mediaData, mimetype, t.MessageType, t.URL)
+    }
+}
+
+func (s *server) returnFileDirectly(w http.ResponseWriter, mediaData []byte, mimetype string, mediaType string, url string) {
+    w.Header().Set("Content-Type", mimetype)
+    w.Header().Set("Content-Length", strconv.Itoa(len(mediaData)))
+    
+    if _, err := w.Write(mediaData); err != nil {
+        log.Error().
+            Err(err).
+            Str("url", url).
+            Msg("Erro ao enviar arquivo diretamente")
+        w.WriteHeader(http.StatusInternalServerError)
+        return
+    }
 }

@@ -29,6 +29,16 @@ type server struct {
 	db     *sqlx.DB
 	router *mux.Router
 	exPath string
+	r2Config R2Config
+}
+
+type R2Config struct {
+	Enabled      bool
+	AccountID    string
+	AccessKey    string
+	SecretKey    string
+	BucketName   string
+	CustomDomain string
 }
 
 var (
@@ -144,6 +154,14 @@ func main() {
 		router: mux.NewRouter(),
 		db:     db,
 		exPath: exPath,
+		r2Config: R2Config{
+			Enabled:    true, // ou false para desabilitar
+			AccountID:  "f446e716078a7afc483142eaa7b27729",
+			AccessKey:  "0ef649b962811d063180af942cc9534b",
+			SecretKey:  "197568bc066f5c94ca9d00a19ef1f09e1cd6402136b8602ca416e235db2bbf96",
+			BucketName: "pa2025dev",
+			CustomDomain: "pa2025dev-r2.possoatender.com", // opcional
+		},
 	}
 	s.routes()
 

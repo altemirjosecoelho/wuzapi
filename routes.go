@@ -87,11 +87,7 @@ func (s *server) routes() {
 
 	s.router.Handle("/chat/presence", c.Then(s.ChatPresence())).Methods("POST")
 	s.router.Handle("/chat/markread", c.Then(s.MarkRead())).Methods("POST")
-	s.router.Handle("/chat/downloadimage", c.Then(s.DownloadImage())).Methods("POST")
-	s.router.Handle("/chat/downloadvideo", c.Then(s.DownloadVideo())).Methods("POST")
-	s.router.Handle("/chat/downloadaudio", c.Then(s.DownloadAudio())).Methods("POST")
-	s.router.Handle("/chat/downloaddocument", c.Then(s.DownloadDocument())).Methods("POST")
-
+	s.router.Handle("/chat/download", c.Then(s.DownloadMedia())).Methods("POST")
 	s.router.Handle("/group/list", c.Then(s.ListGroups())).Methods("GET")
 	s.router.Handle("/group/info", c.Then(s.GetGroupInfo())).Methods("GET")
 	s.router.Handle("/group/invitelink", c.Then(s.GetGroupInviteLink())).Methods("GET")
