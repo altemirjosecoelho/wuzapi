@@ -2955,6 +2955,16 @@ func (s *server) DownloadMedia() http.HandlerFunc {
                 FileSHA256:    fileSHA256,
                 FileLength:    &t.FileLength,
             }}
+        case "stickerMessage":
+            msg = &waProto.Message{StickerMessage: &waProto.StickerMessage{
+                URL:           proto.String(t.URL),
+                DirectPath:    proto.String(t.DirectPath),
+                MediaKey:      mediaKey,
+                Mimetype:      proto.String(t.Mimetype),
+                FileEncSHA256: fileEncSHA256,
+                FileSHA256:    fileSHA256,
+                FileLength:    &t.FileLength,
+            }}
         default:
             s.Respond(w, r, http.StatusBadRequest, errors.New("tipo de mídia inválido"))
             return
@@ -2977,6 +2987,8 @@ func (s *server) DownloadMedia() http.HandlerFunc {
                 downloadable = msg.GetVideoMessage()
             case "audioMessage":
                 downloadable = msg.GetAudioMessage()
+            case "stickerMessage":
+                downloadable = msg.GetStickerMessage()
             }
 
             if downloadable != nil {
