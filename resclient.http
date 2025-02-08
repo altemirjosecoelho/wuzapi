@@ -1,0 +1,40 @@
+@baseUrl = http://localhost:7002
+
+###
+POST {{baseUrl}}/chat/send/text
+accept: application/json
+token: system<<.>>7f6b8f40-4a2b-4075-ba79-2327e59b7510
+Content-Type: application/json
+
+{
+   "Phone": "554784080056",
+    "Body": "How you doin",
+   // "Id": "ABCDABALDJLJDASD89",
+    "ContextInfo": {
+       // "StanzaId": "3EB06F9067F80BAB89FF",
+       // "Participant": "554784080056@s.whatsapp.net"
+    }
+}
+
+
+
+
+
+###
+POST http://localhost:7002/chat/send/image
+Content-Type: application/json
+accept: application/json
+token: system<<.>>7f6b8f40-4a2b-4075-ba79-2327e59b7510
+
+{
+   "Phone": "554784080056",
+   "Media": "https://pa2025dev-r2.possoatender.com/system/documents/temp/sent-messages/1738976907824/dollar-on-background-vector-1585247.jpg",
+   "Caption": "Check out this image!",
+   "MediaType": "image",
+   "ContextInfo": {
+       // "StanzaId": "3EB06F9067F80BAB89FF",
+       // "Participant": "554784080056@s.whatsapp.net"
+   }
+}
+
+

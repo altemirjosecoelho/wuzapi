@@ -873,121 +873,92 @@ paths:
                     "success": true,
                   }
 
-  /chat/downloadimage:
+  /chat/download:
     post:
       tags:
         - Chat
-      summary: Baixar imagem da mensagem
-      description: Baixa uma imagem de uma mensagem e retorna em formato Base64 codificado
+      summary: Baixar mídia de mensagem
+      description: Baixa mídia (imagem, vídeo, áudio, documento ou sticker) de uma mensagem e retorna o arquivo ou URL do R2 se configurado
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#definitions/DownloadImage"
+              type: object
+              required:
+                - URL
+                - MediaKey
+                - Mimetype
+                - FileEncSHA256
+                - FileSHA256
+                - FileLength
+              properties:
+                MessageType:
+                  type: string
+                  description: Tipo da mídia (imageMessage, videoMessage, audioMessage, documentMessage, stickerMessage)
+                  example: "imageMessage"
+                URL:
+                  type: string
+                  description: URL da mídia
+                  example: "https://mmg.whatsapp.net/v/t62.7118-24/..."
+                DirectPath:
+                  type: string
+                  description: Caminho direto da mídia
+                  example: "/v/t62.7118-24/..."
+                MediaKey:
+                  type: string
+                  description: Chave da mídia em base64
+                  example: "YW5kIHRoaXMgaXMgYSBzYW1wbGUgbWVkaWEga2V5"
+                Mimetype:
+                  type: string
+                  description: Tipo MIME do arquivo
+                  example: "image/jpeg"
+                FileEncSHA256:
+                  type: string
+                  description: SHA256 do arquivo criptografado em base64
+                  example: "YW5kIHRoaXMgaXMgYSBzYW1wbGUgc2hhMjU2"
+                FileSHA256:
+                  type: string
+                  description: SHA256 do arquivo em base64
+                  example: "YW5kIHRoaXMgaXMgYW5vdGhlciBzYW1wbGUgc2hhMjU2"
+                FileLength:
+                  type: integer
+                  description: Tamanho do arquivo em bytes
+                  example: 123456
+                FileName:
+                  type: string
+                  description: Nome do arquivo (opcional)
+                  example: "imagem.jpg"
 
       responses:
         200:
-          description: Response
+          description: Resposta bem-sucedida
           content:
             application/json:
               schema:
                 example:
                   {
-                    "code": 200,
-                    "data":
-                      {
-                        "Data": "data:image/jpeg;base64,iVBORw0KGgoA5CYII...=",
-                        "Mimetype": "image/jpeg",
-                      },
-                    "success": true,
+                    "url": "https://custom-domain.com/arquivo.jpg",
+                    "mimetype": "image/jpeg",
+                    "size": 123456,
+                    "fileName": "arquivo.jpg"
                   }
-
-  /chat/downloadvideo:
-    post:
-      tags:
-        - Chat
-      summary: Baixar vídeo da mensagem
-      description: Baixa um vídeo de uma mensagem e retorna em formato Base64 codificado
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#definitions/DownloadImage"
-
-      responses:
-        200:
-          description: Response
-          content:
-            application/json:
+            image/*:
               schema:
-                example:
-                  {
-                    "code": 200,
-                    "data":
-                      {
-                        "Data": "data:video/mp4;base64,iVBORw0KGgoA5CYII...=",
-                        "Mimetype": "video/mp4",
-                      },
-                    "success": true,
-                  }
-
-  /chat/downloaddocument:
-    post:
-      tags:
-        - Chat
-      summary: Baixar documento da mensagem
-      description: Baixa um documento de uma mensagem e retorna em formato Base64 codificado
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#definitions/DownloadImage"
-
-      responses:
-        200:
-          description: Response
-          content:
-            application/json:
+                type: string
+                format: binary
+            video/*:
               schema:
-                example:
-                  {
-                    "code": 200,
-                    "data":
-                      {
-                        "Data": "data:application/pdf;base64,iVBORw0KGgoA5CYII...=",
-                        "Mimetype": "application/pdf",
-                      },
-                    "success": true,
-                  }
-
-  /chat/presence:
-    post:
-      tags:
-        - Chat
-      summary: Definir presença no chat
-      description: Envia indicação se você está digitando ou não (state pode ser "composing" ou "paused"). Media opcional pode ser definido como "audio" para indicar gravação de mensagem
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#definitions/ChatPresence"
-
-      responses:
-        200:
-          description: Response
-          content:
-            application/json:
+                type: string
+                format: binary
+            audio/*:
               schema:
-                example:
-                  {
-                    "code": 200,
-                    "data": { "Details": "Chat presence set successfuly" },
-                    "success": true,
-                  }
+                type: string
+                format: binary
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
 
   /group/list:
     get:
@@ -1198,6 +1169,86 @@ paths:
                         "PictureID": "1222332123",
                       },
                     "success": true,
+                  }
+
+  /chat/send/media:
+    post:
+      tags:
+        - Chat
+      summary: Enviar mensagem de mídia
+      description: |
+        Envia uma mensagem de mídia (imagem, áudio, vídeo ou documento). O tipo de mídia deve ser especificado no campo `MediaType`. Os dados da mídia podem ser enviados como base64 no campo `MediaData` ou como URL no campo `MediaURL`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - Phone
+                - MediaType
+              properties:
+                Phone:
+                  type: string
+                  description: Número de telefone do destinatário
+                  example: "5491155553935"
+                MediaType:
+                  type: string
+                  description: Tipo de mídia a ser enviada (image, audio, video, document)
+                  example: "image"
+                MediaData:
+                  type: string
+                  description: Dados da mídia codificados em base64
+                  example: "base64_encoded_data"
+                MediaURL:
+                  type: string
+                  description: URL da mídia
+                  example: "http://example.com/media.jpg"
+                Caption:
+                  type: string
+                  description: Legenda para a mídia (opcional)
+                  example: "Aqui está a imagem"
+                Id:
+                  type: string
+                  description: Identificador único para a mensagem (opcional)
+                  example: "unique_message_id"
+      responses:
+        200:
+          description: Mensagem enviada com sucesso
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 200,
+                    "data": {
+                      "Details": "Sent",
+                      "Id": "unique_message_id",
+                      "Timestamp": "2022-04-20T12:49:08-03:00"
+                    },
+                    "success": true
+                  }
+        400:
+          description: Erro na requisição
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 400,
+                    "error": "Invalid request data",
+                    "success": false
+                  }
+        500:
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                example:
+                  {
+                    "code": 500,
+                    "error": "Internal server error",
+                    "success": false
                   }
 
 definitions:

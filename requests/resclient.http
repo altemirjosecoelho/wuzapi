@@ -1,0 +1,53 @@
+@baseUrl = http://localhost:7002
+
+###
+POST {{baseUrl}}/chat/send/media
+Content-Type: application/json
+accept: application/json
+token: system<<.>>7f6b8f40-4a2b-4075-ba79-2327e59b7510
+
+{
+  "mediaType": "audio",
+  "phone": "5511987654321",
+  "base64": "data:audio/ogg;base64,AAAA...", 
+  "caption": "Meu áudio via Base64",
+  "id": "123abc-opcional-aqui",
+  "contextInfo": {
+    "stanzaID": "ABC123opcional",
+    "participant": "5511987654321@s.whatsapp.net"
+  }
+}
+
+
+###
+POST {{baseUrl}}/chat/send/media
+Content-Type: application/json
+accept: application/json
+token: system<<.>>7f6b8f40-4a2b-4075-ba79-2327e59b7510
+
+{  
+  "mediaType": "document",
+  "phone": "554784080056",
+  "mediaUrl": "https://pa2025dev-r2.possoatender.com/system/documents/temp/sent-messages/1738976907824/eventoFDS.pdf",
+  "caption": "Minha imagem via URL",
+  "contextInfo": {
+
+  }
+}
+
+
+###
+POST {{baseUrl}}/chat/send/media
+Content-Type: application/json
+accept: application/json
+token: system<<.>>7f6b8f40-4a2b-4075-ba79-2327e59b7510
+
+{
+  "mediaType": "document",
+  "phone": "5511987654321",
+  "base64": "data:application/octet-stream;base64,BBBB...",
+  "caption": "Segue meu PDF",
+  "fileName": "meu-arquivo.pdf",
+  "id": "",
+  "contextInfo": {}
+} 
