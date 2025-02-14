@@ -1,9 +1,10 @@
 @baseUrl = http://localhost:7002
+@token = system<<.>>95424246-84c3-4e80-9462-f7b69e565e75
 
 ###
 POST {{baseUrl}}/chat/send/text
 accept: application/json
-token: system<<.>>7f6b8f40-4a2b-4075-ba79-2327e59b7510
+token: {{token}}
 Content-Type: application/json
 
 {
@@ -21,16 +22,16 @@ Content-Type: application/json
 
 
 ###
-POST http://localhost:7002/chat/send/image
+POST {{baseUrl}}/chat/send/media
 Content-Type: application/json
 accept: application/json
-token: system<<.>>7f6b8f40-4a2b-4075-ba79-2327e59b7510
+token: {{token}}
 
 {
    "Phone": "554784080056",
-   "Media": "https://pa2025dev-r2.possoatender.com/system/documents/temp/sent-messages/1738976907824/dollar-on-background-vector-1585247.jpg",
+   "MediaUrl": "https://pa2025dev-r2.possoatender.com/system/documents/temp/sent-messages/1739296807455/audio_message.ogg",
    "Caption": "Check out this image!",
-   "MediaType": "image",
+   "MediaType": "audio",
    "ContextInfo": {
        // "StanzaId": "3EB06F9067F80BAB89FF",
        // "Participant": "554784080056@s.whatsapp.net"

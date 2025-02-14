@@ -9,8 +9,10 @@ import (
 	"image"
 	"image/jpeg"
 	"io"
+	"math"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -20,28 +22,6 @@ import (
 	waProto "go.mau.fi/whatsmeow/binary/proto"
 	"google.golang.org/protobuf/proto"
 )
-
-// SendMedia agora permite enviar mídia via base64 OU via mediaUrl.
-// Se "base64" não estiver vazio, ele prevalece. Caso contrário, se "mediaUrl" for fornecido,
-// a função irá buscar o arquivo via URL. Se ambos estiverem vazios, retorna erro.
-//
-// JSON esperado (exemplo):
-// {
-//   "mediaType": "audio",
-//   "phone": "5511999999999",
-//   "base64": "data:audio/ogg;base64,AAA...", // opcional
-//   "mediaUrl": "http://dominio.com/arquivo.ogg", // opcional
-//   "fileName": "exemplo.pdf",  // necessário se documento
-//   "caption": "Legenda aqui",  // usado em imagem, vídeo, documento
-//   "jpegThumbnail": "...",     // miniatura, se quiser forçar
-//   "id": "...",                // opcional, se quiser controlar o ID da mensagem
-//   "contextInfo": {
-//       "stanzaID": "...",
-//       "participant": "...",
-//       "mentionedJid": [],
-//       "quotedMessage": {}
-//   }
-// }
 
 func (s *server) SendMedia() http.HandlerFunc {
 	type mediaRequest struct {
@@ -123,6 +103,14 @@ func (s *server) SendMedia() http.HandlerFunc {
 				return
 			}
 			filedata = respData
+
+			// Se o fileName não existir, extraia do mediaUrl
+			if req.FileName == "" && req.MediaUrl != "" {
+				partesDaUrl := strings.Split(req.MediaUrl, "/")
+				if len(partesDaUrl) > 0 {
+					req.FileName = partesDaUrl[len(partesDaUrl)-1]
+				}
+			}
 		} else {
 			s.Respond(w, r, http.StatusBadRequest,
 				errors.New("Você deve informar 'base64' ou 'mediaUrl'"))
@@ -131,6 +119,12 @@ func (s *server) SendMedia() http.HandlerFunc {
 
 		// Função auxiliar para setar ContextInfo (citação de mensagem anterior e menções)
 		setContextInfo := func(msg *waProto.Message) {
+			if req.ContextInfo.Expiration != nil {
+				msg.ExtendedTextMessage.ContextInfo = &waProto.ContextInfo{
+					Expiration: proto.Uint32(*req.ContextInfo.Expiration),
+				}
+			}
+
 			if req.ContextInfo.StanzaID != nil {
 				if msg.ExtendedTextMessage == nil {
 					msg.ExtendedTextMessage = &waProto.ExtendedTextMessage{}
@@ -180,6 +174,18 @@ func (s *server) SendMedia() http.HandlerFunc {
 		switch mediaType {
 
 		case "audio":
+
+			// Converte o arquivo WebM para OGG, se necessário
+			var duration uint32
+			if strings.HasSuffix(req.MediaUrl, ".webm") || strings.HasSuffix(req.MediaUrl, ".mp3") || strings.HasSuffix(req.MediaUrl, ".ogg") {
+
+				filedata, duration, err = convertWebMToOgg(filedata, req.FileName)
+
+				if err != nil {
+					s.Respond(w, r, http.StatusInternalServerError, fmt.Errorf("Falha ao converter WebM para OGG: %v", err))
+					return
+				}
+			}
 			// Faz upload
 			uploaded, err = clientPointer[userid].Upload(context.Background(), filedata, whatsmeow.MediaAudio)
 			if err != nil {
@@ -193,18 +199,22 @@ func (s *server) SendMedia() http.HandlerFunc {
 					URL:           proto.String(uploaded.URL),
 					DirectPath:    proto.String(uploaded.DirectPath),
 					MediaKey:      uploaded.MediaKey,
-					Mimetype:      &mime,
+					Mimetype:      proto.String(mime),
 					FileEncSHA256: uploaded.FileEncSHA256,
 					FileSHA256:    uploaded.FileSHA256,
 					FileLength:    proto.Uint64(uint64(len(filedata))),
 					PTT:           &ptt,
+					Seconds:       proto.Uint32(uint32(duration)),
 				},
 			}
 			setContextInfo(msg)
+
 			sendMessage(msg, "Áudio enviado", "Erro ao enviar áudio")
 			return
 
 		case "video":
+			var duration uint32
+			filedata, duration, err = convertWebMToOgg(filedata, req.FileName)
 			uploaded, err = clientPointer[userid].Upload(context.Background(), filedata, whatsmeow.MediaVideo)
 			if err != nil {
 				s.Respond(w, r, http.StatusInternalServerError, fmt.Errorf("Falha ao fazer upload do vídeo: %v", err))
@@ -222,6 +232,7 @@ func (s *server) SendMedia() http.HandlerFunc {
 					FileSHA256:    uploaded.FileSHA256,
 					FileLength:    proto.Uint64(uint64(len(filedata))),
 					JPEGThumbnail: req.JPEGThumbnail,
+					Seconds:       proto.Uint32(uint32(duration)),
 				},
 			}
 			setContextInfo(msg)
@@ -269,6 +280,7 @@ func (s *server) SendMedia() http.HandlerFunc {
 				}
 				msg.ImageMessage.ContextInfo.MentionedJID = req.ContextInfo.MentionedJID
 			}
+
 			sendMessage(msg, "Imagem enviada", "Erro ao enviar imagem")
 			return
 
@@ -408,4 +420,109 @@ func fetchMediaFromUrl(mediaUrl string) ([]byte, error) {
 		return nil, fmt.Errorf("Falha ao ler o conteúdo da URL: %v", err)
 	}
 	return body, nil
+}
+
+// convertWebMToOgg converte um arquivo WebM, MP3 ou OGG para o formato de áudio "audio/ogg; codecs=opus".
+func convertWebMToOgg(input []byte, fileName string) ([]byte, uint32, error) {
+	// Função auxiliar para imprimir detalhes do áudio usando ffprobe
+	printAudioDetails := func(filePath string) (uint32, error) {
+
+		cmd := exec.Command("ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", filePath)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			fmt.Printf("Erro ao obter detalhes do áudio com ffprobe: %v\n", err)
+			return 0, err
+		}
+
+		details := strings.Split(strings.TrimSpace(string(output)), "\n")
+		var duration uint32
+		if len(details) >= 1 {
+			fmt.Printf("Duration: %s\n", details[0])
+			durationFloat, err := strconv.ParseFloat(details[0], 64)
+			if err == nil {
+				duration = uint32(math.Round(durationFloat))
+			}
+		} else {
+			fmt.Println("Detalhes do áudio não foram encontrados ou estão incompletos.")
+		}
+
+		// Detecta o mimeType usando o comando file
+
+		mimeCmd := exec.Command("file", "--mime-type", "-b", filePath)
+		mimeOutput, err := mimeCmd.CombinedOutput()
+		if err != nil {
+			fmt.Printf("Erro ao obter MIME Type: %v\n", err)
+			return 0, err
+		}
+		fmt.Printf("MIME Type: %s\n", strings.TrimSpace(string(mimeOutput)))
+
+		return duration, nil
+	}
+
+	// Cria um arquivo temporário para o arquivo de entrada
+
+	inputFile, err := os.CreateTemp("", "input-*")
+	if err != nil {
+		fmt.Printf("Erro ao criar arquivo temporário de entrada: %v\n", err)
+		return nil, 0, err
+	}
+	defer os.Remove(inputFile.Name())
+
+	// Escreve os dados de entrada no arquivo temporário
+
+	if _, err := inputFile.Write(input); err != nil {
+		fmt.Printf("Erro ao escrever dados de entrada: %v\n", err)
+		return nil, 0, err
+	}
+	inputFile.Close()
+
+	// Imprime detalhes do áudio antes da conversão
+
+	duration, err := printAudioDetails(inputFile.Name())
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Verifica se o arquivo precisa de conversão
+	if strings.HasSuffix(fileName, ".webm") || strings.HasSuffix(fileName, ".mp3") {
+
+		// Cria um arquivo temporário para o arquivo OGG de saída
+		outputFile, err := os.CreateTemp("", "output-*.ogg")
+		if err != nil {
+			fmt.Printf("Erro ao criar arquivo temporário de saída: %v\n", err)
+			return nil, 0, err
+		}
+		defer os.Remove(outputFile.Name())
+		outputFile.Close()
+
+		cmd := exec.Command("ffmpeg", "-y", "-i", inputFile.Name(), "-c:a", "libopus", "-b:a", "16k", "-ac", "1", "-ar", "48000", "-avoid_negative_ts", "make_zero", outputFile.Name())
+
+		// Captura a saída de erro padrão do ffmpeg
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+
+		// Executa o comando ffmpeg para converter o arquivo
+		if err := cmd.Run(); err != nil {
+			fmt.Printf("Erro ao executar ffmpeg: %v\n", err)
+			fmt.Printf("Detalhes do erro do ffmpeg: %s\n", stderr.String())
+			return nil, 0, err
+		}
+
+		duration, err = printAudioDetails(outputFile.Name())
+		if err != nil {
+			return nil, 0, err
+		}
+
+		convertedData, err := os.ReadFile(outputFile.Name())
+		if err != nil {
+			fmt.Printf("Erro ao ler arquivo de saída convertido: %v\n", err)
+			return nil, 0, err
+		}
+
+		return convertedData, duration, nil
+	}
+
+	fmt.Println("Arquivo não requer conversão. Retornando dados originais.")
+	// Se não for necessário converter, retorna os dados originais
+	return input, duration, nil
 }
